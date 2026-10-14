@@ -41,6 +41,9 @@ export function validateEmployeeSubmission(input: unknown) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values[key]) || values[key].length > 254) {
       throw new EmployeeValidationError(`Please enter a valid ${requiredFields[key].toLowerCase()}.`);
     }
+    if (key === "company_email" && !/^[^\s@]+@cebutele-net\.com$/i.test(values[key])) {
+      throw new EmployeeValidationError("Please use your Company email ending in @cebutele-net.com.");
+    }
     employee[key] = values[key];
   }
 

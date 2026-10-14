@@ -43,7 +43,7 @@ const steps = [
       { name: "contact_number", label: "Contact number", type: "tel", required: true },
       { name: "employee_email", label: "Company Gmail", type: "email", placeholder: "your-name.telenet@gmail.com", required: true },
       { name: "personal_email", label: "Personal email", type: "email", required: true },
-      { name: "company_email", label: "Company email", type: "email", placeholder: "your-name@cebu-telenet.com", required: true },
+      { name: "company_email", label: "Company email", type: "email", placeholder: "your-name@cebutele-net.com", pattern: "[^\\s@]+@cebutele-net\\.com", title: "Use your company email ending in @cebutele-net.com.", required: true },
       { name: "site", label: "Work site", required: true, options: [{ value: "ALABANG", label: "ALABANG" }, { value: "AYALA", label: "AYALA" }, { value: "FAUSTINA", label: "FAUSTINA" }, { value: "USA", label: "USA" }] },
     ],
   },
