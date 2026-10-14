@@ -27,6 +27,13 @@ type FormDraft = {
   values: Record<string, string>;
 };
 
+type AccountAssignmentSummary = {
+  account_id: string;
+  account_label?: string;
+  lob_ids: string[];
+  lob_options?: { value: string; label: string }[];
+};
+
 const draftStorageKey = "ctnp-employee-form-draft-v1";
 
 const steps = [
@@ -63,9 +70,7 @@ const steps = [
     icon: "03",
     fields: [
       { name: "hire_date", label: "Hire date", type: "date", required: true },
-      { name: "position_id", label: "Position", required: true, options: [{ value: "6", label: "Account Manager" }, { value: "7", label: "Assistant Account Manager" }, { value: "4", label: "Corporate Trainer" }, { value: "10", label: "Customer Service Associate" }, { value: "1", label: "Head Of Training" }, { value: "9", label: "Product Improvement Specialist" }, { value: "14", label: "Product Specific Trainer - BF" }, { value: "15", label: "Product Specific Trainer - RM" }, { value: "2", label: "Product Specific Training" }, { value: "3", label: "QA Supervisor" }, { value: "8", label: "Quality Analyst" }, { value: "13", label: "Quality Coordinator" }, { value: "11", label: "Systems Developer" }, { value: "12", label: "Team Lead" }, { value: "5", label: "Training Coordinator" }] },
-      { name: "account_id", label: "Account" },
-      { name: "lob_id", label: "LOB", hint: "Choose an account first." },
+      { name: "position_id", label: "Position", required: true },
       { name: "Department", label: "Department", required: true },
       { name: "levels", label: "Level", options: [{ value: "EXECUTIVE", label: "Executive" }, { value: "CORE MANAGER", label: "Core Manager" }, { value: "SENIOR LEAD", label: "Senior Lead" }, { value: "JUNIOR LEAD", label: "Junior Lead" }, { value: "APPRENTICE", label: "Apprentice" }, { value: "SPECIAL OPERATIONS AGENT", label: "Special Operations Agent" }, { value: "AGENT", label: "Agent" }] },
       { name: "shift_type", label: "Shift type", required: true, options: [{ value: "DAY SHIFT", label: "Day shift" }, { value: "MID SHIFT", label: "Mid shift" }, { value: "NIGHT SHIFT", label: "Night shift" }] },
@@ -122,11 +127,14 @@ export default function Home() {
   const [employeeCode, setEmployeeCode] = useState("");
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState("");
+  const [showLookupModal, setShowLookupModal] = useState(false);
+  const [detectedAssignments, setDetectedAssignments] = useState<AccountAssignmentSummary[]>([]);
   const [existingProfile, setExistingProfile] = useState(false);
   const [lookupToken, setLookupToken] = useState("");
   const [savedOptions, setSavedOptions] = useState<Record<string, { value: string; label: string }>>({});
   const [accountOptions, setAccountOptions] = useState<{ value: string; label: string }[]>([]);
   const [lobsByAccount, setLobsByAccount] = useState<Record<string, { value: string; label: string }[]>>({});
+  const [positionOptions, setPositionOptions] = useState<{ value: string; label: string }[]>([]);
   const checkingCode = useRef(false);
   const [activeStep, setActiveStep] = useState(0);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -146,17 +154,34 @@ export default function Home() {
     let active = true;
     const loadFormOptions = async () => {
       try {
-        const [accountsResponse, lobsResponse] = await Promise.all([
+        const [accountsResponse, lobsResponse, positionsResponse] = await Promise.all([
           fetch("/api/accounts", { cache: "no-store" }),
           fetch("/api/lobs", { cache: "no-store" }),
+          fetch("/api/positions", { cache: "no-store" }),
         ]);
         if (accountsResponse.ok) {
           const result = await accountsResponse.json();
-          if (active && Array.isArray(result.options)) setAccountOptions(result.options);
+          if (active && Array.isArray(result.options)) setAccountOptions((current) => {
+            const merged = new Map(current.map((option: { value: string; label: string }) => [option.value, option]));
+            for (const option of result.options) merged.set(option.value, option);
+            return [...merged.values()];
+          });
         }
         if (lobsResponse.ok) {
           const result = await lobsResponse.json();
-          if (active && result.options && typeof result.options === "object") setLobsByAccount(result.options);
+          if (active && result.options && typeof result.options === "object") setLobsByAccount((current) => {
+            const merged = { ...current };
+            for (const [accountId, options] of Object.entries(result.options) as [string, { value: string; label: string }[]][]) {
+              const accountOptions = new Map((merged[accountId] ?? []).map((option) => [option.value, option]));
+              for (const option of options) accountOptions.set(option.value, option);
+              merged[accountId] = [...accountOptions.values()];
+            }
+            return merged;
+          });
+        }
+        if (positionsResponse.ok) {
+          const result = await positionsResponse.json();
+          if (active && Array.isArray(result.options)) setPositionOptions(result.options);
         }
       } catch {
         // Keep the current options and retry on the next refresh.
@@ -228,7 +253,7 @@ export default function Home() {
   const previewSections = [
     { title: steps[0].title, index: 0, fields: steps[0].fields },
     { title: steps[1].title, index: 1, fields: [...steps[1].fields, { name: "address", label: "Home address" }, { name: "photo", label: "Profile photo" }] },
-    { title: steps[2].title, index: 2, fields: [...steps[2].fields.filter((field) => field.name !== "shift"), ...(values.hire_date_leader ? [{ name: "hire_date_leader", label: "Leadership start date" }] : []), steps[2].fields.find((field) => field.name === "shift")!] },
+    { title: steps[2].title, index: 2, fields: [...steps[2].fields.filter((field) => field.name !== "shift"), { name: "account_lob_assignments", label: "Accounts and LOBs" }, ...(values.hire_date_leader ? [{ name: "hire_date_leader", label: "Leadership start date" }] : []), steps[2].fields.find((field) => field.name === "shift")!] },
     { title: steps[3].title, index: 3, fields: steps[3].fields },
   ];
 
@@ -248,8 +273,30 @@ export default function Home() {
       const loadedValues = result.found ? result.values : { employee_code: result.employeeCode };
       setValues(draftToRestore ? { ...loadedValues, ...draftToRestore.values } : loadedValues);
       setExistingProfile(Boolean(result.found));
+      const savedAssignments = Array.isArray(result.assignments) ? result.assignments as AccountAssignmentSummary[] : [];
+      setDetectedAssignments(savedAssignments);
+      setShowLookupModal(!draftToRestore);
       setLookupToken(result.lookupToken || "");
       setSavedOptions(result.options || {});
+      if (Array.isArray(result.assignments)) {
+        setAccountOptions((current) => {
+          const merged = new Map(current.map((option: { value: string; label: string }) => [option.value, option]));
+          for (const assignment of result.assignments) {
+            if (assignment.account_id && assignment.account_label) merged.set(String(assignment.account_id), { value: String(assignment.account_id), label: String(assignment.account_label) });
+          }
+          return [...merged.values()];
+        });
+        setLobsByAccount((current) => {
+          const merged = { ...current };
+          for (const assignment of result.assignments) {
+            if (!assignment.account_id || !Array.isArray(assignment.lob_options)) continue;
+            const options = new Map((merged[String(assignment.account_id)] ?? []).map((option) => [option.value, option]));
+            for (const lob of assignment.lob_options) options.set(String(lob.value), { value: String(lob.value), label: String(lob.label) });
+            merged[String(assignment.account_id)] = [...options.values()];
+          }
+          return merged;
+        });
+      }
       setPhotoFile(null);
       if (photoPreview.startsWith("blob:")) URL.revokeObjectURL(photoPreview);
       setPhotoPreview(result.found ? result.values.avatar_url || "" : "");
@@ -269,10 +316,20 @@ export default function Home() {
 
   function previewValue(name: string) {
     if (name === "photo") return photoFile?.name ?? "Not provided";
+    if (name === "account_lob_assignments") {
+      try {
+        const assignments = JSON.parse(values.account_lob_assignments || "[]") as { account_id: string; lob_ids: string[] }[];
+        const labels = assignments.flatMap((assignment) => {
+          const account = accountOptions.find((option) => option.value === assignment.account_id)?.label ?? assignment.account_id;
+          const lobs = (lobsByAccount[assignment.account_id] ?? []).filter((option) => assignment.lob_ids.includes(option.value)).map((option) => option.label);
+          return [lobs.length ? `${account}: ${lobs.join(", ")}` : account];
+        });
+        return labels.join("; ") || "Not provided";
+      } catch { return "Not provided"; }
+    }
     const value = values[name];
     if (!value) return "Not provided";
-    if (name === "account_id") return accountOptions.find((option) => option.value === value)?.label ?? (savedOptions[name]?.value === value ? savedOptions[name].label : value);
-    if (name === "lob_id") return lobsByAccount[values.account_id]?.find((option) => option.value === value)?.label ?? (savedOptions[name]?.value === value ? savedOptions[name].label : value);
+    if (name === "position_id") return positionOptions.find((option) => option.value === value)?.label ?? (savedOptions[name]?.value === value ? savedOptions[name].label : value);
     for (const section of steps) {
       const field: Field | undefined = section.fields.find((candidate) => candidate.name === name);
       const option = field?.options?.find((candidate) => candidate.value === value);
@@ -285,7 +342,7 @@ export default function Home() {
   function update(name: string, value: string) {
     setValues((current) => {
       const emailFields = ["employee_email", "personal_email", "company_email"];
-      const next = { ...current, [name]: emailFields.includes(name) || name === "vici_link" ? value : value.toUpperCase() };
+      const next = { ...current, [name]: emailFields.includes(name) || name === "vici_link" || name === "account_lob_assignments" ? value : value.toUpperCase() };
       if (["first_name", "middle_name", "last_name", "suffix"].includes(name)) {
         next.employee_name = [next.first_name, next.middle_name, next.last_name, next.suffix]
           .map((part) => part?.trim())
@@ -298,9 +355,6 @@ export default function Home() {
           .map((part) => next[part]?.trim())
           .filter(Boolean)
           .join(", ");
-      }
-      if (name === "account_id") {
-        next.lob_id = "";
       }
       if (name === "levels" && value.toUpperCase() !== "JUNIOR LEAD") {
         delete next.hire_date_leader;
@@ -318,6 +372,10 @@ export default function Home() {
       setSubmitted(false);
       setSubmissionError("");
     }
+  }
+
+  function continueAfterLookup() {
+    setShowLookupModal(false);
   }
 
   async function finish() {
@@ -433,7 +491,7 @@ export default function Home() {
             </div>
             <div className="employee-code-context">
               <div><strong>{values.employee_code}</strong><span>{existingProfile ? "Saved profile loaded. Review and update your information." : "No saved profile found. Complete your information below."}</span></div>
-              <button type="button" disabled={saving} onClick={() => { setEmployeeCode(values.employee_code || ""); setLookupError(""); setCodeChecked(false); }}>Change Employee Code</button>
+              <button type="button" disabled={saving} onClick={() => { setEmployeeCode(values.employee_code || ""); setLookupError(""); setShowLookupModal(false); setCodeChecked(false); }}>Change Employee Code</button>
             </div>
 
             {activeStep === steps.length - 1 ? (
@@ -467,12 +525,35 @@ export default function Home() {
               </div>
             ) : (
             <div className="fields-grid">
+              {activeStep === 2 && <section className="field-wide assignment-section" aria-labelledby="assignments-heading">
+                <div className="assignment-heading"><div className="assignment-title-row"><span className="field-label" id="assignments-heading">Accounts and LOBs</span><span className="optional-text">Optional</span></div><span className="field-hint">Choose one or more accounts, then select the LOBs for each one.</span></div>
+                <div className="account-list">{accountOptions.map((account) => {
+                  let assignments: { account_id: string; lob_ids: string[] }[] = [];
+                  try { assignments = JSON.parse(values.account_lob_assignments || "[]"); } catch {}
+                  const selected = assignments.find((assignment) => assignment.account_id === account.value);
+                  const accountLobs = lobsByAccount[account.value] ?? [];
+                  const setAssignments = (lobIds: string[]) => {
+                    const next = assignments.filter((assignment) => assignment.account_id !== account.value);
+                    if (selected || lobIds.length) next.push({ account_id: account.value, lob_ids: lobIds });
+                    update("account_lob_assignments", JSON.stringify(next));
+                  };
+                  return <section className={`account-card${selected ? " account-card-selected" : ""}`} key={account.value}>
+                    <label className="check-row account-check"><input type="checkbox" checked={Boolean(selected)} onChange={(event) => {
+                      if (event.target.checked) update("account_lob_assignments", JSON.stringify([...assignments, { account_id: account.value, lob_ids: [] }]));
+                      else update("account_lob_assignments", JSON.stringify(assignments.filter((assignment) => assignment.account_id !== account.value)));
+                    }} /><span>{account.label}</span></label>
+                    {selected && <div className="lob-list" aria-label={`${account.label} LOB options`}>
+                      {accountLobs.length > 1 && <label className="check-row select-all-lobs"><input type="checkbox" checked={accountLobs.every((lob) => selected.lob_ids.includes(lob.value))} onChange={(event) => setAssignments(event.target.checked ? accountLobs.map((lob) => lob.value) : [])} /><span>Select all LOBs</span></label>}
+                      {accountLobs.map((lob) => <label className="check-row" key={lob.value}><input type="checkbox" checked={selected.lob_ids.includes(lob.value)} onChange={(event) => setAssignments(event.target.checked ? [...new Set([...selected.lob_ids, lob.value])] : selected.lob_ids.filter((id) => id !== lob.value))} /><span>{lob.label}</span></label>)}
+                      {accountLobs.length === 0 && <span className="field-hint">No LOBs are currently available for this account.</span>}
+                    </div>}
+                  </section>;
+                })}</div>
+              </section>}
               {step.fields.flatMap((field) => {
-                let configuredField: Field = field.name === "account_id"
-                  ? { ...field, options: accountOptions, placeholder: "Select an account" }
-                  : field.name === "lob_id"
-                    ? { ...field, options: lobsByAccount[values.account_id] ?? [], disabled: !values.account_id, placeholder: values.account_id ? "Select a LOB" : "Choose an account first", hint: values.account_id ? "Options are filtered by your selected account." : "Choose an account first." }
-                    : field;
+                let configuredField: Field = field.name === "position_id"
+                  ? { ...field, options: positionOptions }
+                  : field;
                 const savedOption = savedOptions[field.name];
                 if (configuredField.options && savedOption && savedOption.value === values[field.name]
                   && !configuredField.options.some((option) => option.value === savedOption.value)
@@ -526,6 +607,29 @@ export default function Home() {
         </section>
         <footer className="page-footer"><span>CTNP SYSTEM</span><span>EMPLOYEE PROFILE</span></footer>
       </section>
+      {showLookupModal && createPortal((
+        <div className="modal-backdrop lookup-modal-backdrop">
+          <section className="lookup-modal" role="dialog" aria-modal="true" aria-labelledby="lookup-modal-title" aria-describedby="lookup-modal-description">
+            <div className={`lookup-modal-mark${existingProfile ? " lookup-modal-mark-found" : ""}`} aria-hidden="true">{existingProfile ? "✓" : "i"}</div>
+            <h2 id="lookup-modal-title">{existingProfile ? detectedAssignments.length ? "Account detected" : "Employee ID found" : "No account exists yet"}</h2>
+            {existingProfile && values.employee_name && <p className="lookup-employee-name">{values.employee_name}</p>}
+            <p id="lookup-modal-description">{existingProfile
+              ? detectedAssignments.length
+                ? "We found this Employee ID and its saved account assignment in the database."
+                : "We found this Employee ID, but there is no account linked to the saved profile yet."
+              : "There is no saved employee profile or account linked to this Employee ID. You can create a new profile now."}</p>
+            {detectedAssignments.length > 0 && <ul className="lookup-account-list">
+              {detectedAssignments.map((assignment) => <li key={assignment.account_id}>
+                <strong>{assignment.account_label || `Account ${assignment.account_id}`}</strong>
+                <span>{assignment.lob_options?.map((lob) => lob.label).join(", ") || assignment.lob_ids.join(", ")}</span>
+              </li>)}
+            </ul>}
+            <button type="button" className="next-button lookup-modal-action" autoFocus onClick={continueAfterLookup}>
+              {existingProfile ? detectedAssignments.length ? "Load saved profile" : "Continue and add account" : "Create new profile"}<span aria-hidden="true">→</span>
+            </button>
+          </section>
+        </div>
+      ), document.body)}
       {draftPhotoPreview && createPortal((
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) cancelPhoto(); }}>
           <section className="photo-modal" role="dialog" aria-modal="true" aria-labelledby="photo-modal-title">

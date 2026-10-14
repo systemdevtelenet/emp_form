@@ -89,10 +89,32 @@ export function validateEmployeeSubmission(input: unknown) {
     if (!values[key] && !required) return null;
     const value = Number(values[key]);
     if (!/^\d+$/.test(values[key]) || !Number.isSafeInteger(value) || value <= 0) {
-      throw new EmployeeValidationError(`Please choose a valid ${requiredFields[key].toLowerCase()}.`);
+      const label = requiredFields[key] ?? (key === "account_id" ? "Account" : "LOB");
+      throw new EmployeeValidationError(`Please choose a valid ${label.toLowerCase()}.`);
     }
     return value;
   }
   employee.position_id = id("position_id");
-  return { employee, accountId: id("account_id", false), lobId: id("lob_id", false) };
+  let assignments: { account_id: number; lob_ids: number[] }[] = [];
+  if (values.account_lob_assignments) {
+    let parsed: unknown;
+    try { parsed = JSON.parse(values.account_lob_assignments); } catch { throw new EmployeeValidationError("Please review your account and LOB selections."); }
+    if (!Array.isArray(parsed) || parsed.length > 100) throw new EmployeeValidationError("Please review your account and LOB selections.");
+    const accountIds = new Set<number>();
+    assignments = parsed.map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new EmployeeValidationError("Please review your account and LOB selections.");
+      const account_id = Number((entry as Record<string, unknown>).account_id);
+      const rawLobs = (entry as Record<string, unknown>).lob_ids;
+      if (!Number.isSafeInteger(account_id) || account_id <= 0 || accountIds.has(account_id) || !Array.isArray(rawLobs) || rawLobs.length === 0 || rawLobs.length > 100) {
+        throw new EmployeeValidationError("Choose at least one LOB for every selected account.");
+      }
+      accountIds.add(account_id);
+      const lob_ids = rawLobs.map((lob) => Number(lob));
+      if (lob_ids.some((lob) => !Number.isSafeInteger(lob) || lob <= 0) || new Set(lob_ids).size !== lob_ids.length) {
+        throw new EmployeeValidationError("Please review your account and LOB selections.");
+      }
+      return { account_id, lob_ids };
+    });
+  }
+  return { employee, assignments };
 }

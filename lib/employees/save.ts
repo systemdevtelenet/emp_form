@@ -6,7 +6,7 @@ import { EmployeeSaveError } from "./errors";
 export { EmployeeSaveError } from "./errors";
 
 export async function saveEmployeeInformation(input: unknown, photo: File | null, lookupToken = "") {
-  const { employee, accountId, lobId } = validateEmployeeSubmission(input);
+  const { employee, assignments } = validateEmployeeSubmission(input);
   const existingEmployeeId = lookupToken ? verifyLookupToken(lookupToken, String(employee.employee_code)) : null;
   const imageTypes: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
   let bytes: Uint8Array | undefined;
@@ -37,8 +37,8 @@ export async function saveEmployeeInformation(input: unknown, photo: File | null
     employee.avatar_url = supabase.storage.from(bucket).getPublicUrl(photoPath).data.publicUrl;
   }
 
-  const { data, error } = await supabase.rpc("save_employee_information", {
-    p_employee: employee, p_account_id: accountId, p_lob_id: lobId, p_existing_employee_id: existingEmployeeId,
+  const { data, error } = await supabase.rpc("save_employee_information_with_assignments", {
+    p_employee: employee, p_assignments: assignments, p_existing_employee_id: existingEmployeeId,
   });
   if (error) {
     // Only clean up on a confirmed database rejection. A network failure may occur after a commit.

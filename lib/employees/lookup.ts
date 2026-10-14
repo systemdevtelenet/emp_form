@@ -64,12 +64,13 @@ export async function lookupEmployeeInformation(input: unknown) {
     values[key] = preservedCase.includes(key) ? text : text.toUpperCase();
   }
   values.employee_code = employeeCode;
+  values.account_lob_assignments = JSON.stringify(Array.isArray(data.assignments) ? data.assignments : []);
   values.employee_name = [values.first_name, values.middle_name, values.last_name, values.suffix].filter(Boolean).join(" ") || values.employee_name;
   if (["DAY", "MID", "NIGHT"].includes(values.shift_type)) values.shift_type += " SHIFT";
   const shift = values.shift?.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\s*[-–—]\s*(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
   if (shift) values.shift = `${Number(shift[1])}:${shift[2] || "00"} ${shift[3].toUpperCase()} - ${Number(shift[4])}:${shift[5] || "00"} ${shift[6].toUpperCase()}`;
   return {
-    found: true, employeeCode, values, options: data.options,
+    found: true, employeeCode, values, options: data.options, assignments: data.assignments ?? [],
     lookupToken: createLookupToken(String(data.employeeId), employeeCode),
   };
 }

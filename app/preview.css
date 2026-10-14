@@ -30,10 +30,41 @@
 .employee-code-context strong { display: block; color: var(--indigo); font-size: 12px; }
 .employee-code-context span { display: block; margin-top: 4px; color: #777577; font-size: 11px; }
 .employee-code-context button { padding: 6px 0; flex-shrink: 0; border: 0; background: transparent; color: var(--indigo); font-size: 10px; font-weight: 700; text-decoration: underline; }
+.lookup-modal-backdrop { z-index: 20; }
+.lookup-modal { width: min(100%, 440px); max-height: min(86vh, 680px); overflow-y: auto; padding: 28px; border: 1px solid #e2e0da; border-radius: 15px; background: #fff; box-shadow: 0 24px 80px rgba(25,35,44,.24); text-align: center; }
+.lookup-modal-mark { width: 46px; height: 46px; margin: 0 auto 14px; display: grid; place-items: center; border: 1px solid #eadfbf; border-radius: 50%; color: #8b7132; background: #fbf7eb; font-size: 21px; font-weight: 700; }
+.lookup-modal-mark-found { border-color: #cfdfd4; color: #3b7655; background: #eff7f1; }
+.lookup-modal h2 { margin: 0; color: var(--charcoal); font-size: 20px; letter-spacing: -.35px; }
+.lookup-modal .lookup-employee-name { margin: 6px 0 0; color: var(--indigo); font-size: 14px; font-weight: 700; }
+.lookup-modal > p { margin: 9px 0 0; color: #777577; font-size: 12px; line-height: 1.6; }
+.lookup-account-list { max-height: 220px; margin: 17px 0 0; padding: 0; overflow-y: auto; display: grid; gap: 7px; list-style: none; text-align: left; }
+.lookup-account-list li { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; border: 1px solid #e8e6df; border-radius: 8px; background: #fbfbf9; }
+.lookup-account-list strong { color: var(--indigo); font-size: 11px; }
+.lookup-account-list span { color: #777577; font-size: 10px; line-height: 1.45; }
+.lookup-modal-action { width: 100%; margin-top: 20px; }
 .employee-saved-address { padding: 12px; border: 1px solid #e2e0da; border-radius: 8px; background: var(--off-white); }
 .employee-saved-address strong { color: #777577; font-size: 10px; }
 .employee-saved-address p { margin: 5px 0; color: var(--charcoal); font-size: 12px; }
 .employee-saved-address span { color: #858287; font-size: 10px; }
+.form-card form .fields-grid .assignment-section { display: flex; flex-direction: column; gap: 12px; }
+.form-card form .fields-grid .assignment-heading { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+.assignment-title-row { display: flex; align-items: center; gap: 8px; }
+.assignment-title-row .field-label { color: var(--charcoal); font-size: 12px; }
+.assignment-heading .field-hint { margin: 0; font-size: 11px; line-height: 1.45; }
+.assignment-heading .optional-text { padding: 3px 7px; border-radius: 99px; color: #777577; background: #f0efeb; font-size: 9px; }
+.form-card form .fields-grid .account-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.form-card form .fields-grid .account-card { min-width: 0; align-self: start; overflow: hidden; border: 1px solid #e4e2dc; border-radius: 9px; background: #fff; transition: border-color .16s, box-shadow .16s, background .16s; }
+.form-card form .fields-grid .account-card-selected { border-color: #91aac0; background: #fbfcfd; box-shadow: 0 2px 8px rgba(47,103,152,.08); }
+.form-card form .fields-grid .check-row { min-width: 0; min-height: 38px; padding: 8px 10px; display: flex; align-items: center; gap: 10px; color: #4c494b; font-size: 11px; line-height: 1.35; cursor: pointer; }
+.form-card form .fields-grid .check-row:hover { background: #f8f9fa; }
+.form-card form .fields-grid .check-row input { width: 16px; height: 16px; flex: 0 0 16px; margin: 0; accent-color: var(--indigo); cursor: pointer; }
+.form-card form .fields-grid .account-check { font-weight: 700; }
+.account-check span { overflow-wrap: anywhere; }
+.account-card-selected > .account-check { color: var(--indigo); }
+.form-card form .fields-grid .lob-list { margin: 0 10px 10px 35px; padding-top: 6px; display: grid; gap: 2px; border-top: 1px solid #e8e6df; }
+.form-card form .fields-grid .lob-list .check-row { min-height: 32px; padding: 6px 7px; border-radius: 5px; }
+.form-card form .fields-grid .lob-list .select-all-lobs { color: var(--indigo); font-weight: 700; }
+@media (max-width: 640px) { .form-card form .fields-grid .account-list { grid-template-columns: 1fr; gap: 8px; } }
 .next-button:disabled, .back-button:disabled, .employee-preview-sectionHeading button:disabled { opacity: .65; transform: none; box-shadow: none; }
 @media (max-width: 640px) {
   .employee-code-entry { align-items: stretch; flex-direction: column; }
