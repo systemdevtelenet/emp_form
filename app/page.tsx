@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import "./preview.css";
 
@@ -44,24 +44,22 @@ const steps = [
       { name: "employee_email", label: "Company Gmail", type: "email", placeholder: "your-name.telenet@gmail.com", required: true },
       { name: "personal_email", label: "Personal email", type: "email", required: true },
       { name: "company_email", label: "Company email", type: "email", placeholder: "your-name@cebu-telenet.com", required: true },
-      { name: "site", label: "Work site", required: true },
+      { name: "site", label: "Work site", required: true, options: [{ value: "ALABANG", label: "ALABANG" }, { value: "AYALA", label: "AYALA" }, { value: "FAUSTINA", label: "FAUSTINA" }, { value: "USA", label: "USA" }] },
     ],
   },
   {
     title: "Your work details",
-    subtitle: "Complete your current work information. Fields marked * are required; Leadership start date is required for Junior Lead. Vici link and TU Units are optional.",
+    subtitle: "Complete your current work information. Fields marked * are required; Leadership start date is required for Junior Lead.",
     icon: "03",
     fields: [
       { name: "hire_date", label: "Hire date", type: "date", required: true },
       { name: "position_id", label: "Position", required: true, options: [{ value: "6", label: "Account Manager" }, { value: "7", label: "Assistant Account Manager" }, { value: "4", label: "Corporate Trainer" }, { value: "10", label: "Customer Service Associate" }, { value: "1", label: "Head Of Training" }, { value: "9", label: "Product Improvement Specialist" }, { value: "14", label: "Product Specific Trainer - BF" }, { value: "15", label: "Product Specific Trainer - RM" }, { value: "2", label: "Product Specific Training" }, { value: "3", label: "QA Supervisor" }, { value: "8", label: "Quality Analyst" }, { value: "13", label: "Quality Coordinator" }, { value: "11", label: "Systems Developer" }, { value: "12", label: "Team Lead" }, { value: "5", label: "Training Coordinator" }] },
-      { name: "account_id", label: "Account", required: true },
-      { name: "lob_id", label: "LOB", required: true, hint: "Choose an account first." },
+      { name: "account_id", label: "Account" },
+      { name: "lob_id", label: "LOB", hint: "Choose an account first." },
       { name: "Department", label: "Department", required: true },
-      { name: "levels", label: "Level", required: true, options: [{ value: "EXECUTIVE", label: "Executive" }, { value: "CORE MANAGER", label: "Core Manager" }, { value: "SENIOR LEAD", label: "Senior Lead" }, { value: "JUNIOR LEAD", label: "Junior Lead" }, { value: "APPRENTICE", label: "Apprentice" }, { value: "SPECIAL OPERATIONS AGENT", label: "Special Operations Agent" }, { value: "AGENT", label: "Agent" }] },
+      { name: "levels", label: "Level", options: [{ value: "EXECUTIVE", label: "Executive" }, { value: "CORE MANAGER", label: "Core Manager" }, { value: "SENIOR LEAD", label: "Senior Lead" }, { value: "JUNIOR LEAD", label: "Junior Lead" }, { value: "APPRENTICE", label: "Apprentice" }, { value: "SPECIAL OPERATIONS AGENT", label: "Special Operations Agent" }, { value: "AGENT", label: "Agent" }] },
       { name: "shift_type", label: "Shift type", required: true, options: [{ value: "DAY SHIFT", label: "Day shift" }, { value: "MID SHIFT", label: "Mid shift" }, { value: "NIGHT SHIFT", label: "Night shift" }] },
       { name: "shift", label: "Shift", required: true, placeholder: "9:00 PM - 6:00 AM", hint: "Use the format h:mm AM - h:mm AM.", pattern: "(0?[1-9]|1[0-2]):[0-5][0-9] (AM|PM) - (0?[1-9]|1[0-2]):[0-5][0-9] (AM|PM)", title: "Use a format such as 9:00 PM - 6:00 AM." },
-      { name: "tu_units", label: "TU units" },
-      { name: "vici_link", label: "Vici link (optional)", type: "url", wide: true, hint: "Leave blank if you don’t use Vici." },
     ],
   },
   {
@@ -91,34 +89,6 @@ const addressFields: Field[] = [
   { name: "address_province", label: "Province" },
 ];
 
-const accountOptions = [
-  { value: "2", label: "BILL FIXERS - EXPERIAN" },
-  { value: "28", label: "CONNECTICUT TECHNICAL SERVICES" },
-  { value: "10", label: "COVA HOTEL" },
-  { value: "3", label: "DEFERIT" },
-  { value: "11", label: "FLEET RESPONSE" },
-  { value: "5", label: "FLEXAR" },
-  { value: "27", label: "HAMMER HEAD" },
-  { value: "4", label: "JUST SYSTEMS" },
-  { value: "29", label: "ONO PHARMA" },
-  { value: "1", label: "ROCKET MONEY" },
-  { value: "7", label: "SPA-ASUKA" },
-];
-
-const lobsByAccount: Record<string, { value: string; label: string }[]> = {
-  "2": [{ value: "33", label: "CANCELLATION" }, { value: "10", label: "NEGOTIATIONS" }],
-  "28": [{ value: "27", label: "MAIN" }],
-  "10": [{ value: "2", label: "MAIN" }],
-  "3": [{ value: "5", label: "NEGOT" }],
-  "11": [{ value: "3", label: "MAIN" }],
-  "5": [{ value: "34", label: "TIER 1" }, { value: "8", label: "TIER 2" }],
-  "27": [{ value: "26", label: "MAIN" }],
-  "4": [{ value: "9", label: "MAIN" }],
-  "29": [{ value: "28", label: "MAIN" }],
-  "1": [{ value: "6", label: "CXL" }, { value: "7", label: "NEGOT" }],
-  "7": [{ value: "4", label: "MAIN" }],
-};
-
 function FieldInput({ field, value, onChange, uppercase = true }: { field: Field; value: string; onChange: (value: string) => void; uppercase?: boolean }) {
   const id = `employee-${field.name}`;
   return (
@@ -145,6 +115,8 @@ export default function Home() {
   const [existingProfile, setExistingProfile] = useState(false);
   const [lookupToken, setLookupToken] = useState("");
   const [savedOptions, setSavedOptions] = useState<Record<string, { value: string; label: string }>>({});
+  const [accountOptions, setAccountOptions] = useState<{ value: string; label: string }[]>([]);
+  const [lobsByAccount, setLobsByAccount] = useState<Record<string, { value: string; label: string }[]>>({});
   const checkingCode = useRef(false);
   const [activeStep, setActiveStep] = useState(0);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -157,6 +129,37 @@ export default function Home() {
   const [draftPhotoFile, setDraftPhotoFile] = useState<File | null>(null);
   const [draftPhotoPreview, setDraftPhotoPreview] = useState("");
   const [photoZoom, setPhotoZoom] = useState(1);
+
+  useEffect(() => {
+    let active = true;
+    const loadFormOptions = async () => {
+      try {
+        const [accountsResponse, lobsResponse] = await Promise.all([
+          fetch("/api/accounts", { cache: "no-store" }),
+          fetch("/api/lobs", { cache: "no-store" }),
+        ]);
+        if (accountsResponse.ok) {
+          const result = await accountsResponse.json();
+          if (active && Array.isArray(result.options)) setAccountOptions(result.options);
+        }
+        if (lobsResponse.ok) {
+          const result = await lobsResponse.json();
+          if (active && result.options && typeof result.options === "object") setLobsByAccount(result.options);
+        }
+      } catch {
+        // Keep the current options and retry on the next refresh.
+      }
+    };
+    void loadFormOptions();
+    const interval = window.setInterval(loadFormOptions, 30_000);
+    window.addEventListener("focus", loadFormOptions);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", loadFormOptions);
+    };
+  }, []);
+
   const step = steps[activeStep];
   const progress = ((activeStep + 1) / steps.length) * 100;
   const previewSections = [
@@ -324,7 +327,7 @@ export default function Home() {
         <div className="intro">
           <div className="eyebrow"><span /> PEOPLE OPERATIONS</div>
           <h1>Employee information</h1>
-          <p>{codeChecked ? "Please complete each section with your information. You can go back to review your answers." : "Enter your Employee Code to check for a saved profile before you begin."}</p>
+          <p>{submitted ? "Submitted. Thank you!" : codeChecked ? "Please complete each section with your information. You can go back to review your answers." : "Enter your Employee Code to check for a saved profile before you begin."}</p>
         </div>
 
         <section className="form-card" aria-label="New employee form">
@@ -338,6 +341,11 @@ export default function Home() {
               <p className="employee-code-help">If no saved profile is found, you can complete a new employee profile.</p>
               {lookupError && <div className="notice" role="alert"><span>!</span><div><strong>Unable to check your code</strong><p>{lookupError}</p></div></div>}
             </form>
+          ) : submitted ? (
+            <div className="notice employee-save-success" role="status">
+              <span aria-hidden="true">✓</span>
+              <div><strong>Submitted</strong><p>Thank you!</p></div>
+            </div>
           ) : (<>
           <div className="progress-area">
             <div className="step-track" aria-label={`Step ${activeStep + 1} of ${steps.length}`}>
@@ -440,8 +448,6 @@ export default function Home() {
             </div>
             )}
             {submissionError && <div className="notice" role="alert"><span>!</span><div><strong>Submission could not be completed</strong><p>{submissionError}</p></div></div>}
-            {submitted && <div className="notice employee-save-success" role="status"><span>✓</span><div><strong>{existingProfile ? "Your information has been updated" : "Your information has been submitted"}</strong><p>Your employee details have been saved to CTNP System. Thank you for completing your profile.</p></div></div>}
-
             <div className="form-footer">
               <span className="save-note"><span className="save-icon">▣</span> {submitted ? "Your information has been saved" : "Your answers remain here until you leave this page"}</span>
               <div className="actions">

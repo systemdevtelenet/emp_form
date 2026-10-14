@@ -5,8 +5,8 @@ const requiredFields: Record<string, string> = {
   gender: "Gender", birthdate: "Birth date", contact_number: "Contact number",
   employee_email: "Company Gmail", personal_email: "Personal email",
   company_email: "Company email", site: "Work site", hire_date: "Hire date",
-  position_id: "Position", account_id: "Account", lob_id: "LOB",
-  Department: "Department", levels: "Level", shift_type: "Shift type", shift: "Shift",
+  position_id: "Position",
+  Department: "Department", shift_type: "Shift type", shift: "Shift",
 };
 
 const textFields = [
@@ -49,7 +49,7 @@ export function validateEmployeeSubmission(input: unknown) {
   }
   if ((values.suffix?.length ?? 0) > 40) throw new EmployeeValidationError("Suffix must be 40 characters or fewer.");
   if (!genders.includes(String(employee.gender))) throw new EmployeeValidationError("Please choose a gender option.");
-  if (!levels.includes(String(employee.levels))) throw new EmployeeValidationError("Please choose a level.");
+  if (employee.levels !== null && !levels.includes(String(employee.levels))) throw new EmployeeValidationError("Please choose a level.");
   if (!["DAY SHIFT", "MID SHIFT", "NIGHT SHIFT"].includes(String(employee.shift_type))) {
     throw new EmployeeValidationError("Please choose a shift type.");
   }
@@ -82,7 +82,8 @@ export function validateEmployeeSubmission(input: unknown) {
     }
   }
 
-  function id(key: string) {
+  function id(key: string, required = true) {
+    if (!values[key] && !required) return null;
     const value = Number(values[key]);
     if (!/^\d+$/.test(values[key]) || !Number.isSafeInteger(value) || value <= 0) {
       throw new EmployeeValidationError(`Please choose a valid ${requiredFields[key].toLowerCase()}.`);
@@ -90,5 +91,5 @@ export function validateEmployeeSubmission(input: unknown) {
     return value;
   }
   employee.position_id = id("position_id");
-  return { employee, accountId: id("account_id"), lobId: id("lob_id") };
+  return { employee, accountId: id("account_id", false), lobId: id("lob_id", false) };
 }
