@@ -19,6 +19,16 @@ type Field = {
   readOnly?: boolean;
 };
 
+type FormDraft = {
+  version: 1;
+  employeeCode: string;
+  existingProfile: boolean;
+  activeStep: number;
+  values: Record<string, string>;
+};
+
+const draftStorageKey = "ctnp-employee-form-draft-v1";
+
 const steps = [
   {
     title: "Your personal details",
@@ -129,6 +139,8 @@ export default function Home() {
   const [draftPhotoFile, setDraftPhotoFile] = useState<File | null>(null);
   const [draftPhotoPreview, setDraftPhotoPreview] = useState("");
   const [photoZoom, setPhotoZoom] = useState(1);
+  const [draftReady, setDraftReady] = useState(false);
+  const pendingDraft = useRef<FormDraft | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -160,6 +172,57 @@ export default function Home() {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const restoreDraft = async () => {
+      try {
+        const saved = localStorage.getItem(draftStorageKey);
+        if (!saved) return;
+        const parsed = JSON.parse(saved) as Partial<FormDraft>;
+        if (parsed.version !== 1 || typeof parsed.employeeCode !== "string" || parsed.employeeCode.length > 100
+          || typeof parsed.existingProfile !== "boolean" || !Number.isInteger(parsed.activeStep)
+          || (parsed.activeStep as number) < 0 || (parsed.activeStep as number) >= steps.length
+          || !parsed.values || typeof parsed.values !== "object" || Array.isArray(parsed.values)
+          || parsed.values.employee_code !== parsed.employeeCode
+          || Object.values(parsed.values).some((value) => typeof value !== "string" || value.length > 1000)) {
+          try { localStorage.removeItem(draftStorageKey); } catch {}
+          return;
+        }
+        const draft = parsed as FormDraft;
+        pendingDraft.current = draft;
+        setEmployeeCode(draft.employeeCode);
+        if (active) await checkEmployeeCode(draft.employeeCode, draft);
+      } catch {
+        try { localStorage.removeItem(draftStorageKey); } catch {}
+      } finally {
+        if (active) setDraftReady(true);
+      }
+    };
+    void restoreDraft();
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    if (submitted || (!codeChecked && !pendingDraft.current) || (codeChecked && !values.employee_code)) {
+      try { localStorage.removeItem(draftStorageKey); } catch {}
+      return;
+    }
+    if (!codeChecked) return;
+    const draft: FormDraft = {
+      version: 1,
+      employeeCode: values.employee_code,
+      existingProfile,
+      activeStep,
+      values,
+    };
+    try {
+      localStorage.setItem(draftStorageKey, JSON.stringify(draft));
+    } catch {
+      // A full or unavailable browser storage must not interrupt form entry.
+    }
+  }, [draftReady, codeChecked, submitted, values, existingProfile, activeStep, employeeCode]);
+
   const step = steps[activeStep];
   const progress = ((activeStep + 1) / steps.length) * 100;
   const previewSections = [
@@ -169,19 +232,21 @@ export default function Home() {
     { title: steps[3].title, index: 3, fields: steps[3].fields },
   ];
 
-  async function checkEmployeeCode() {
+  async function checkEmployeeCode(codeToCheck = employeeCode, restoredDraft?: FormDraft) {
     if (checkingCode.current) return;
+    const draftToRestore = restoredDraft ?? pendingDraft.current;
     checkingCode.current = true;
     setLookupLoading(true);
     setLookupError("");
     try {
       const response = await fetch("/api/employees/lookup", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeCode: employeeCode.trim().toUpperCase() }),
+        body: JSON.stringify({ employeeCode: codeToCheck.trim().toUpperCase() }),
       });
       const result = await response.json().catch(() => null);
       if (!result || !response.ok) throw new Error(result?.error || "Your Employee Code could not be checked. Please try again.");
-      setValues(result.found ? result.values : { employee_code: result.employeeCode });
+      const loadedValues = result.found ? result.values : { employee_code: result.employeeCode };
+      setValues(draftToRestore ? { ...loadedValues, ...draftToRestore.values } : loadedValues);
       setExistingProfile(Boolean(result.found));
       setLookupToken(result.lookupToken || "");
       setSavedOptions(result.options || {});
@@ -189,7 +254,8 @@ export default function Home() {
       if (photoPreview.startsWith("blob:")) URL.revokeObjectURL(photoPreview);
       setPhotoPreview(result.found ? result.values.avatar_url || "" : "");
       cancelPhoto();
-      setActiveStep(0);
+      setActiveStep(draftToRestore?.activeStep ?? 0);
+      pendingDraft.current = null;
       setSubmitted(false);
       setSubmissionError("");
       setCodeChecked(true);
@@ -335,7 +401,7 @@ export default function Home() {
             <form className="employee-code-form" aria-busy={lookupLoading} onSubmit={(event) => { event.preventDefault(); void checkEmployeeCode(); }}>
               <div className="form-heading"><div className="heading-icon">01</div><div><h2>Start with your Employee Code</h2><p>We will load your saved information if your profile already exists.</p></div></div>
               <div className="employee-code-entry">
-                <FieldInput field={{ name: "lookup_code", label: "Employee Code", required: true, disabled: lookupLoading, placeholder: "Enter your Employee Code" }} value={employeeCode} onChange={(value) => { setEmployeeCode(value.toUpperCase()); setLookupError(""); }} />
+                <FieldInput field={{ name: "lookup_code", label: "Employee Code", required: true, disabled: lookupLoading, placeholder: "Enter your Employee Code" }} value={employeeCode} onChange={(value) => { if (pendingDraft.current && value.toUpperCase() !== pendingDraft.current.employeeCode) pendingDraft.current = null; setEmployeeCode(value.toUpperCase()); setLookupError(""); }} />
                 <button type="submit" className="next-button" disabled={lookupLoading}>{lookupLoading ? "Checking…" : "Check Employee Code"}</button>
               </div>
               <p className="employee-code-help">If no saved profile is found, you can complete a new employee profile.</p>
@@ -449,7 +515,7 @@ export default function Home() {
             )}
             {submissionError && <div className="notice" role="alert"><span>!</span><div><strong>Submission could not be completed</strong><p>{submissionError}</p></div></div>}
             <div className="form-footer">
-              <span className="save-note"><span className="save-icon">▣</span> {submitted ? "Your information has been saved" : "Your answers remain here until you leave this page"}</span>
+              <span className="save-note"><span className="save-icon">▣</span> Draft saved in this browser</span>
               <div className="actions">
                 {activeStep > 0 && !submitted && <button type="button" className="back-button" disabled={saving} onClick={() => goToStep(activeStep - 1)}>← <span>Back</span></button>}
                 <button className="next-button" type="submit" disabled={saving || submitted}>{submitted ? "Saved" : saving ? "Saving…" : activeStep === steps.length - 1 ? existingProfile ? "Save changes" : "Submit" : "Continue"}{!saving && !submitted && <span>→</span>}</button>
