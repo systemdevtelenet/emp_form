@@ -22,8 +22,8 @@ begin
   end if;
 
   foreach required_field in array array[
-    'employee_code', 'first_name', 'last_name', 'employee_email', 'personal_email',
-    'company_email', 'gender', 'tax_status_code', 'birthdate', 'contact_number', 'site', 'hire_date',
+    'employee_code', 'first_name', 'last_name', 'personal_email',
+    'gender', 'tax_status_code', 'birthdate', 'contact_number', 'site', 'hire_date',
     'position_id', 'Department', 'shift_type', 'shift', 'employment_status'
   ] loop
     if nullif(btrim(p_employee ->> required_field), '') is null then
@@ -36,6 +36,8 @@ begin
   end if;
 
   employee_record := jsonb_populate_record(null::public.employees, p_employee);
+  employee_record.employee_email := nullif(btrim(employee_record.employee_email), '');
+  employee_record.company_email := nullif(btrim(employee_record.company_email), '');
   if upper(btrim(p_employee ->> 'employment_status')) not in ('ACTIVE', 'INACTIVE', 'RESIGNED', 'ON LEAVE', 'AWOL', 'LATERAL') then
     raise exception 'Invalid employment status' using errcode = '22023';
   end if;
@@ -64,7 +66,9 @@ begin
 
   -- Serialize repeated submissions without changing existing employee records.
   perform pg_advisory_xact_lock(hashtextextended('employee-form-code:' || employee_record.employee_code, 0));
-  perform pg_advisory_xact_lock(hashtextextended('employee-form-email:' || lower(btrim(employee_record.employee_email)), 0));
+  if employee_record.employee_email is not null then
+    perform pg_advisory_xact_lock(hashtextextended('employee-form-email:' || lower(employee_record.employee_email), 0));
+  end if;
   if p_existing_employee_id is not null then
     select * into original_record from public.employees where id = p_existing_employee_id for update;
     if not found or upper(btrim(original_record.employee_code)) <> employee_record.employee_code then

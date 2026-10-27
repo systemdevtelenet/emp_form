@@ -3,8 +3,7 @@ export class EmployeeValidationError extends Error {}
 const requiredFields: Record<string, string> = {
   employee_code: "Employee ID", first_name: "First name", last_name: "Last name",
   gender: "Gender", tax_status_code: "Tax Status Code", birthdate: "Birth date", contact_number: "Contact number",
-  employee_email: "Company Gmail", personal_email: "Personal email",
-  company_email: "Company email", site: "Work site", hire_date: "Hire date",
+  personal_email: "Personal email", site: "Work site", hire_date: "Hire date",
   position_id: "Position",
   Department: "Department", shift_type: "Shift type", shift: "Shift", employment_status: "Employment status",
 };
@@ -15,6 +14,9 @@ const textFields = [
   "sss_number", "pag_ibig_number", "tin", "philhealth", "tax_status_code",
 ] as const;
 const emailFields = ["employee_email", "personal_email", "company_email"] as const;
+const emailLabels: Record<(typeof emailFields)[number], string> = {
+  employee_email: "Company Gmail", personal_email: "Personal email", company_email: "Company email",
+};
 const addressFields = ["address_building", "address_street", "address_barangay", "address_city", "address_province"];
 const presentAddressFields = ["present_address_building", "present_address_street", "present_address_barangay", "present_address_city", "present_address_province"];
 const levels = ["EXECUTIVE", "CORE MANAGER", "SENIOR LEAD", "JUNIOR LEAD", "APPRENTICE", "SPECIAL OPERATIONS AGENT", "AGENT"];
@@ -40,8 +42,12 @@ export function validateEmployeeSubmission(input: unknown) {
   const employee: Record<string, string | number | boolean | null> = {};
   for (const key of textFields) employee[key] = values[key]?.toUpperCase() || null;
   for (const key of emailFields) {
+    if (!values[key] && key !== "personal_email") {
+      employee[key] = null;
+      continue;
+    }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values[key]) || values[key].length > 254) {
-      throw new EmployeeValidationError(`Please enter a valid ${requiredFields[key].toLowerCase()}.`);
+      throw new EmployeeValidationError(`Please enter a valid ${emailLabels[key].toLowerCase()}.`);
     }
     if (key === "company_email" && !/^[^\s@]+@cebutele-net\.com$/i.test(values[key])) {
       throw new EmployeeValidationError("Please use your Company email ending in @cebutele-net.com.");
