@@ -23,8 +23,8 @@ begin
 
   foreach required_field in array array[
     'employee_code', 'first_name', 'last_name', 'employee_email', 'personal_email',
-    'company_email', 'gender', 'birthdate', 'contact_number', 'site', 'hire_date',
-    'position_id', 'Department', 'shift_type', 'shift'
+    'company_email', 'gender', 'tax_status_code', 'birthdate', 'contact_number', 'site', 'hire_date',
+    'position_id', 'Department', 'shift_type', 'shift', 'employment_status'
   ] loop
     if nullif(btrim(p_employee ->> required_field), '') is null then
       raise exception 'Missing required employee field' using errcode = '22023';
@@ -36,6 +36,15 @@ begin
   end if;
 
   employee_record := jsonb_populate_record(null::public.employees, p_employee);
+  if upper(btrim(p_employee ->> 'employment_status')) not in ('ACTIVE', 'INACTIVE', 'RESIGNED', 'ON LEAVE', 'AWOL', 'LATERAL') then
+    raise exception 'Invalid employment status' using errcode = '22023';
+  end if;
+  select s.status_id into employee_record.status_id from public.statuses s
+  where upper(btrim(s.status_name)) = upper(btrim(p_employee ->> 'employment_status'))
+  order by s.status_id limit 1;
+  if employee_record.status_id is null then
+    raise exception 'Employment status is not configured' using errcode = '22023';
+  end if;
   employee_record.employee_code := upper(btrim(employee_record.employee_code));
   employee_record.first_name := upper(btrim(employee_record.first_name));
   employee_record.middle_name := nullif(upper(btrim(employee_record.middle_name)), '');
@@ -74,17 +83,22 @@ begin
   if p_existing_employee_id is null then
   -- Explicit column list excludes privileges, login credentials, and caller-supplied IDs.
   insert into public.employees (
-    employee_code, employee_name, employee_email, hire_date, vici_link, avatar_url,
+    employee_code, employee_name, employee_email, hire_date, vici_link, avatar_url, status_id,
     gender, position_id, first_name, last_name, middle_name, suffix, contact_number,
-    personal_email, company_email, birthdate, site, address, "Department", levels,
+    personal_email, company_email, birthdate, tax_status_code, site, address, present_address,
+    present_address_same_as_home, emergency_contact_name, emergency_contact_relationship,
+    emergency_contact_number, emergency_contact_address, "Department", levels,
     hire_date_leader, shift, shift_type, tu_units, sss_number, pag_ibig_number, tin, philhealth
   ) values (
     employee_record.employee_code, employee_record.employee_name, employee_record.employee_email,
-    employee_record.hire_date, employee_record.vici_link, employee_record.avatar_url,
+    employee_record.hire_date, employee_record.vici_link, employee_record.avatar_url, employee_record.status_id,
     employee_record.gender, employee_record.position_id, employee_record.first_name,
     employee_record.last_name, employee_record.middle_name, employee_record.suffix,
     employee_record.contact_number, employee_record.personal_email, employee_record.company_email,
-    employee_record.birthdate, employee_record.site, employee_record.address,
+    employee_record.birthdate, employee_record.tax_status_code, employee_record.site, employee_record.address,
+    employee_record.present_address, employee_record.present_address_same_as_home,
+    employee_record.emergency_contact_name, employee_record.emergency_contact_relationship,
+    employee_record.emergency_contact_number, employee_record.emergency_contact_address,
     employee_record."Department", employee_record.levels, employee_record.hire_date_leader,
     employee_record.shift, employee_record.shift_type, employee_record.tu_units,
     employee_record.sss_number, employee_record.pag_ibig_number, employee_record.tin,
@@ -102,6 +116,7 @@ begin
       employee_name = employee_record.employee_name,
       employee_email = employee_record.employee_email,
       hire_date = employee_record.hire_date,
+      status_id = employee_record.status_id,
       vici_link = employee_record.vici_link,
       gender = employee_record.gender,
       position_id = employee_record.position_id,
@@ -113,8 +128,15 @@ begin
       personal_email = employee_record.personal_email,
       company_email = employee_record.company_email,
       birthdate = employee_record.birthdate,
+      tax_status_code = employee_record.tax_status_code,
       site = employee_record.site,
       address = employee_record.address,
+      present_address = employee_record.present_address,
+      present_address_same_as_home = employee_record.present_address_same_as_home,
+      emergency_contact_name = employee_record.emergency_contact_name,
+      emergency_contact_relationship = employee_record.emergency_contact_relationship,
+      emergency_contact_number = employee_record.emergency_contact_number,
+      emergency_contact_address = employee_record.emergency_contact_address,
       "Department" = employee_record."Department",
       levels = employee_record.levels,
       hire_date_leader = employee_record.hire_date_leader,
@@ -179,7 +201,7 @@ declare
   v_account_id bigint;
   lob_ids jsonb;
   v_lob_id bigint;
-  active_status_id bigint;
+  v_account_type text;
 begin
   if p_assignments is null or jsonb_typeof(p_assignments) <> 'array' then
     raise exception 'Invalid account and LOB selections' using errcode = '22023';
@@ -188,6 +210,7 @@ begin
     select 1 from jsonb_array_elements(p_assignments) item
     where jsonb_typeof(item) <> 'object'
       or nullif(item ->> 'account_id', '') is null
+      or upper(coalesce(item ->> 'account_type', '')) not in ('NON VOICE', 'OUTBOUND', 'INBOUND', 'INBOUND/OUTBOUND', 'VOICE', 'ADMIN', 'N/A')
       or case when jsonb_typeof(item -> 'lob_ids') = 'array'
               then jsonb_array_length(item -> 'lob_ids') = 0
               else true end
@@ -204,6 +227,7 @@ begin
   for assignment_group in select value from jsonb_array_elements(p_assignments)
   loop
     v_account_id := (assignment_group ->> 'account_id')::bigint;
+    v_account_type := upper(assignment_group ->> 'account_type');
     lob_ids := assignment_group -> 'lob_ids';
     if v_account_id <= 0 or not exists (
       select 1 from public.accounts a where a.account_id = v_account_id
@@ -241,17 +265,6 @@ begin
   saved_id := public.save_employee_information(
     p_employee, null::bigint, null::bigint, p_existing_employee_id
   )::bigint;
-  if p_existing_employee_id is null then
-    select s.status_id into active_status_id
-    from public.statuses s
-    where lower(btrim(s.status_name)) = 'active'
-    order by s.status_id
-    limit 1;
-    if active_status_id is null then
-      raise exception 'Active employee status is not configured' using errcode = '22023';
-    end if;
-    update public.employees set status_id = active_status_id where id = saved_id;
-  end if;
   if saved_role_id is null then
     select e.role_id into saved_role_id from public.employees e where e.id = saved_id;
   end if;
@@ -264,10 +277,11 @@ begin
   for assignment_group in select value from jsonb_array_elements(p_assignments)
   loop
     v_account_id := (assignment_group ->> 'account_id')::bigint;
+    v_account_type := upper(assignment_group ->> 'account_type');
     for v_lob_id in select value::bigint from jsonb_array_elements_text(assignment_group -> 'lob_ids')
     loop
-      insert into public.employee_assignments (employee_id, account_id, lob_id, role_id, effective_from)
-      values (saved_id, v_account_id, v_lob_id, saved_role_id, now());
+      insert into public.employee_assignments (employee_id, account_id, lob_id, role_id, effective_from, account_type)
+      values (saved_id, v_account_id, v_lob_id, saved_role_id, now(), v_account_type);
     end loop;
   end loop;
   return saved_id::text;

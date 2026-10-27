@@ -8,11 +8,11 @@
 .employee-preview-identity p { margin: 0; color: #777577; font-size: 10px; }
 .employee-preview-employeeId { min-width: 100px; padding-left: 16px; display: flex; flex-direction: column; gap: 5px; border-left: 1px solid #e3e7e9; color: var(--charcoal); font-size: 11px; font-weight: 700; overflow-wrap: anywhere; }
 .employee-preview-employeeId small { color: #858287; font-size: 8px; letter-spacing: .7px; }
-.employee-preview-section { padding: 15px 16px; border: 1px solid #ebe9e3; border-radius: 10px; background: #fff; }
-.employee-preview-sectionHeading { margin-bottom: 13px; padding-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #f0efeb; }
-.employee-preview-sectionHeading h3 { margin: 0; color: var(--charcoal); font-size: 12px; }
-.employee-preview-sectionHeading button { padding: 5px 10px; border: 1px solid #d8e0e7; border-radius: 6px; color: var(--indigo); background: white; font-size: 10px; font-weight: 700; }
-.employee-preview-sectionHeading button:hover { background: #f4f7fa; }
+.employee-preview-section { padding: 15px 16px; border: 1px solid #dfe4e8; border-radius: 10px; background: #f3f5f7; }
+.employee-preview-sectionHeading { margin-bottom: 13px; padding-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #dce2e7; }
+.employee-preview-sectionHeading h3 { margin: 0; color: var(--charcoal); font-size: 12px; font-weight: 800; }
+.employee-preview-sectionHeading button { padding: 5px 10px; border: 1px solid var(--indigo); border-radius: 6px; color: #fff; background: var(--indigo); font-size: 10px; font-weight: 700; }
+.employee-preview-sectionHeading button:hover { background: #285b88; }
 .employee-preview-grid { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 16px; }
 .employee-preview-item { min-width: 0; }
 .employee-preview-item dt { margin-bottom: 4px; color: #858287; font-size: 8px; font-weight: 700; letter-spacing: .35px; text-transform: uppercase; }

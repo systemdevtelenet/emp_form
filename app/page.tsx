@@ -30,6 +30,7 @@ type FormDraft = {
 type AccountAssignmentSummary = {
   account_id: string;
   account_label?: string;
+  account_type?: string;
   lob_ids: string[];
   lob_options?: { value: string; label: string }[];
 };
@@ -49,6 +50,7 @@ const steps = [
       { name: "suffix", label: "Suffix (optional)", hint: "Jr., III, etc." },
       { name: "gender", label: "Gender", required: true, options: [{ value: "FEMALE", label: "Female" }, { value: "MALE", label: "Male" }, { value: "NON-BINARY", label: "Non-binary" }, { value: "ANOTHER IDENTITY", label: "Another identity" }, { value: "PREFER NOT TO SAY", label: "Prefer not to say" }] },
       { name: "birthdate", label: "Birth date", type: "date", required: true },
+      { name: "tax_status_code", label: "Tax Status Code", hint: "Select your marital status for tax records.", required: true, options: [{ value: "SINGLE", label: "Single" }, { value: "MARRIED", label: "Married" }, { value: "WIDOWED", label: "Widowed" }, { value: "LEGALLY SEPARATED", label: "Legally separated" }, { value: "DIVORCED", label: "Divorced" }, { value: "ANNULLED", label: "Annulled" }] },
       { name: "employee_name", label: "Name used in CTNP systems", hint: "This name is filled in automatically from the name fields above.", readOnly: true },
     ],
   },
@@ -70,6 +72,8 @@ const steps = [
     icon: "03",
     fields: [
       { name: "hire_date", label: "Hire date", type: "date", required: true },
+      { name: "years_of_service", label: "Years of service", readOnly: true, hint: "Calculated automatically from your hire date." },
+      { name: "employment_status", label: "Employment status", required: true, options: [{ value: "ACTIVE", label: "Active" }, { value: "INACTIVE", label: "Inactive" }] },
       { name: "position_id", label: "Position", required: true },
       { name: "Department", label: "Department", required: true },
       { name: "levels", label: "Level", options: [{ value: "EXECUTIVE", label: "Executive" }, { value: "CORE MANAGER", label: "Core Manager" }, { value: "SENIOR LEAD", label: "Senior Lead" }, { value: "JUNIOR LEAD", label: "Junior Lead" }, { value: "APPRENTICE", label: "Apprentice" }, { value: "SPECIAL OPERATIONS AGENT", label: "Special Operations Agent" }, { value: "AGENT", label: "Agent" }] },
@@ -103,6 +107,25 @@ const addressFields: Field[] = [
   { name: "address_city", label: "City / Municipality" },
   { name: "address_province", label: "Province" },
 ];
+const presentAddressFields: Field[] = addressFields.map((field) => ({ ...field, name: field.name.replace(/^address_/, "present_address_") }));
+const accountTypeOptions = ["NON VOICE", "OUTBOUND", "INBOUND", "INBOUND/OUTBOUND", "VOICE", "ADMIN", "N/A"].map((value) => ({ value, label: value }));
+const emergencyContactFields: Field[] = [
+  { name: "emergency_contact_name", label: "Emergency contact name" },
+  { name: "emergency_contact_relationship", label: "Relationship" },
+  { name: "emergency_contact_number", label: "Contact number", type: "tel" },
+  { name: "emergency_contact_address", label: "Address", wide: true },
+];
+
+function yearsOfService(hireDate: string, currentDate: string) {
+  if (!hireDate || !currentDate) return "Enter a hire date to calculate";
+  const [hireYear, hireMonth, hireDay] = hireDate.split("-").map(Number);
+  const [currentYear, currentMonth, currentDay] = currentDate.split("-").map(Number);
+  if (!hireYear || !hireMonth || !hireDay || !currentYear || !currentMonth || !currentDay) return "Enter a valid hire date";
+  let years = currentYear - hireYear;
+  if (currentMonth < hireMonth || (currentMonth === hireMonth && currentDay < hireDay)) years -= 1;
+  if (years < 0) return "Hire date is in the future";
+  return `${years} ${years === 1 ? "year" : "years"}`;
+}
 
 function FieldInput({ field, value, onChange, uppercase = true }: { field: Field; value: string; onChange: (value: string) => void; uppercase?: boolean }) {
   const id = `employee-${field.name}`;
@@ -123,6 +146,7 @@ function FieldInput({ field, value, onChange, uppercase = true }: { field: Field
 }
 
 export default function Home() {
+  const [today, setToday] = useState("");
   const [codeChecked, setCodeChecked] = useState(false);
   const [employeeCode, setEmployeeCode] = useState("");
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -149,6 +173,16 @@ export default function Home() {
   const [photoZoom, setPhotoZoom] = useState(1);
   const [draftReady, setDraftReady] = useState(false);
   const pendingDraft = useRef<FormDraft | null>(null);
+
+  useEffect(() => {
+    const refreshToday = () => {
+      const now = new Date();
+      setToday(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`);
+    };
+    refreshToday();
+    const interval = window.setInterval(refreshToday, 60 * 60 * 1000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -252,7 +286,7 @@ export default function Home() {
   const progress = ((activeStep + 1) / steps.length) * 100;
   const previewSections = [
     { title: steps[0].title, index: 0, fields: steps[0].fields },
-    { title: steps[1].title, index: 1, fields: [...steps[1].fields, { name: "address", label: "Home address" }, { name: "photo", label: "Profile photo" }] },
+    { title: steps[1].title, index: 1, fields: [...steps[1].fields, { name: "address", label: "Home address" }, { name: "present_address", label: "Present address" }, ...emergencyContactFields, { name: "photo", label: "Profile photo" }] },
     { title: steps[2].title, index: 2, fields: [...steps[2].fields.filter((field) => field.name !== "shift"), { name: "account_lob_assignments", label: "Accounts and LOBs" }, ...(values.hire_date_leader ? [{ name: "hire_date_leader", label: "Leadership start date" }] : []), steps[2].fields.find((field) => field.name === "shift")!] },
     { title: steps[3].title, index: 3, fields: steps[3].fields },
   ];
@@ -316,13 +350,14 @@ export default function Home() {
 
   function previewValue(name: string) {
     if (name === "photo") return photoFile?.name ?? "Not provided";
+    if (name === "years_of_service") return yearsOfService(values.hire_date ?? "", today);
     if (name === "account_lob_assignments") {
       try {
-        const assignments = JSON.parse(values.account_lob_assignments || "[]") as { account_id: string; lob_ids: string[] }[];
+        const assignments = JSON.parse(values.account_lob_assignments || "[]") as { account_id: string; account_type?: string; lob_ids: string[] }[];
         const labels = assignments.flatMap((assignment) => {
           const account = accountOptions.find((option) => option.value === assignment.account_id)?.label ?? assignment.account_id;
           const lobs = (lobsByAccount[assignment.account_id] ?? []).filter((option) => assignment.lob_ids.includes(option.value)).map((option) => option.label);
-          return [lobs.length ? `${account}: ${lobs.join(", ")}` : account];
+          return [`${account}${assignment.account_type ? ` (${assignment.account_type})` : ""}${lobs.length ? `: ${lobs.join(", ")}` : ""}`];
         });
         return labels.join("; ") || "Not provided";
       } catch { return "Not provided"; }
@@ -355,6 +390,17 @@ export default function Home() {
           .map((part) => next[part]?.trim())
           .filter(Boolean)
           .join(", ");
+      }
+      if (name.startsWith("present_address_")) {
+        next.present_address_edited = "true";
+        next.present_address = ["present_address_building", "present_address_street", "present_address_barangay", "present_address_city", "present_address_province"]
+          .map((part) => next[part]?.trim()).filter(Boolean).join(", ");
+      }
+      if (name === "present_address_same_as_home") {
+        const checked = value.toUpperCase() === "TRUE";
+        next.present_address_same_as_home = checked ? "TRUE" : "FALSE";
+        if (checked) next.present_address = next.address || "";
+        else next.present_address = "";
       }
       if (name === "levels" && value.toUpperCase() !== "JUNIOR LEAD") {
         delete next.hire_date_leader;
@@ -441,7 +487,7 @@ export default function Home() {
     <main className="app-shell">
       <header className="topbar">
         <a className="brand" href="#home" aria-label="CTNP People home">
-          <span className="brand-mark"><span /><span /><span /><span /></span>
+          <img className="brand-logo" src="/ctnp-logo.png" alt="" width="38" height="38" />
           <span>CTNP <b>People</b></span>
         </a>
         <div className="topbar-right"><span className="secure-dot" /> Employee records <span className="topbar-divider">·</span> New profile</div>
@@ -450,7 +496,7 @@ export default function Home() {
       <section className="page-content" id="home">
         <div className="intro">
           <div className="eyebrow"><span /> PEOPLE OPERATIONS</div>
-          <h1>Employee information</h1>
+          <h1>Employee Information</h1>
           <p>{submitted ? "Submitted. Thank you!" : codeChecked ? "Please complete each section with your information. You can go back to review your answers." : "Enter your Employee Code to check for a saved profile before you begin."}</p>
         </div>
 
@@ -512,7 +558,7 @@ export default function Home() {
                       {section.fields.filter((field) => field.name !== "employee_name" && field.name !== "photo").map((field) => (
                         <div className="employee-preview-item" key={field.name}>
                           <dt>{field.label}</dt>
-                          <dd>{field.name === "address" ? (values.address || "Not provided") : previewValue(field.name)}</dd>
+                          <dd>{field.name === "address" ? (values.address || "Not provided") : field.name === "present_address" && values.present_address_same_as_home === "TRUE" ? (values.address || "Same as home address") : previewValue(field.name)}</dd>
                         </div>
                       ))}
                     </dl>
@@ -528,21 +574,23 @@ export default function Home() {
               {activeStep === 2 && <section className="field-wide assignment-section" aria-labelledby="assignments-heading">
                 <div className="assignment-heading"><div className="assignment-title-row"><span className="field-label" id="assignments-heading">Accounts and LOBs</span><span className="optional-text">Optional</span></div><span className="field-hint">Choose one or more accounts, then select the LOBs for each one.</span></div>
                 <div className="account-list">{accountOptions.map((account) => {
-                  let assignments: { account_id: string; lob_ids: string[] }[] = [];
+                  let assignments: { account_id: string; account_type?: string; lob_ids: string[] }[] = [];
                   try { assignments = JSON.parse(values.account_lob_assignments || "[]"); } catch {}
                   const selected = assignments.find((assignment) => assignment.account_id === account.value);
                   const accountLobs = lobsByAccount[account.value] ?? [];
                   const setAssignments = (lobIds: string[]) => {
-                    const next = assignments.filter((assignment) => assignment.account_id !== account.value);
-                    if (selected || lobIds.length) next.push({ account_id: account.value, lob_ids: lobIds });
+          const next = assignments.filter((assignment) => assignment.account_id !== account.value);
+                    if (selected || lobIds.length) next.push({ ...selected, account_id: account.value, lob_ids: lobIds });
                     update("account_lob_assignments", JSON.stringify(next));
                   };
+                  const setAccountType = (account_type: string) => update("account_lob_assignments", JSON.stringify(assignments.map((assignment) => assignment.account_id === account.value ? { ...assignment, account_type } : assignment)));
                   return <section className={`account-card${selected ? " account-card-selected" : ""}`} key={account.value}>
                     <label className="check-row account-check"><input type="checkbox" checked={Boolean(selected)} onChange={(event) => {
                       if (event.target.checked) update("account_lob_assignments", JSON.stringify([...assignments, { account_id: account.value, lob_ids: [] }]));
                       else update("account_lob_assignments", JSON.stringify(assignments.filter((assignment) => assignment.account_id !== account.value)));
                     }} /><span>{account.label}</span></label>
-                    {selected && <div className="lob-list" aria-label={`${account.label} LOB options`}>
+                    {selected && <div className="lob-list" aria-label={`${account.label} assignment details`}>
+                      <FieldInput field={{ name: `account_type_${account.value}`, label: "Type of account", required: true, options: accountTypeOptions }} value={selected.account_type ?? ""} onChange={setAccountType} />
                       {accountLobs.length > 1 && <label className="check-row select-all-lobs"><input type="checkbox" checked={accountLobs.every((lob) => selected.lob_ids.includes(lob.value))} onChange={(event) => setAssignments(event.target.checked ? accountLobs.map((lob) => lob.value) : [])} /><span>Select all LOBs</span></label>}
                       {accountLobs.map((lob) => <label className="check-row" key={lob.value}><input type="checkbox" checked={selected.lob_ids.includes(lob.value)} onChange={(event) => setAssignments(event.target.checked ? [...new Set([...selected.lob_ids, lob.value])] : selected.lob_ids.filter((id) => id !== lob.value))} /><span>{lob.label}</span></label>)}
                       {accountLobs.length === 0 && <span className="field-hint">No LOBs are currently available for this account.</span>}
@@ -551,6 +599,7 @@ export default function Home() {
                 })}</div>
               </section>}
               {step.fields.flatMap((field) => {
+                if (field.name === "years_of_service") return [<label className="field" htmlFor="employee-years-of-service" key={field.name}><span className="field-label">{field.label}</span><input id="employee-years-of-service" className="calculated-display" type="text" value={yearsOfService(values.hire_date ?? "", today)} readOnly /><span className="field-hint">Calculated automatically from your hire date.</span></label>];
                 let configuredField: Field = field.name === "position_id"
                   ? { ...field, options: positionOptions }
                   : field;
@@ -577,6 +626,20 @@ export default function Home() {
                     <div className="address-grid">
                       {addressFields.map((field) => <FieldInput key={field.name} field={field} value={values[field.name] ?? ""} onChange={(value) => update(field.name, value)} />)}
                     </div>
+                  </section>
+                  <section className="field-wide address-section" aria-labelledby="present-address-heading">
+                    <div className="address-heading">
+                      <span className="field-label" id="present-address-heading">Present address</span>
+                      <span className="field-hint">Optional. Enter where you currently live.</span>
+                    </div>
+                    <label className="check-row address-same-check"><input type="checkbox" checked={values.present_address_same_as_home === "TRUE"} onChange={(event) => update("present_address_same_as_home", event.target.checked ? "true" : "false")} /><span>Present address is the same as home address</span></label>
+                    {values.present_address_same_as_home === "TRUE"
+                      ? <div className="employee-saved-address"><strong>Using home address</strong><p>{values.address || "Enter your home address above."}</p></div>
+                      : <div className="address-grid">{presentAddressFields.map((field) => <FieldInput key={field.name} field={field} value={values[field.name] ?? ""} onChange={(value) => update(field.name, value)} />)}</div>}
+                  </section>
+                  <section className="field-wide address-section emergency-contact-section" aria-labelledby="emergency-contact-heading">
+                    <div className="address-heading"><span className="field-label" id="emergency-contact-heading">Emergency contact</span><span className="field-hint">Optional. Add someone we can contact in an emergency.</span></div>
+                    <div className="address-grid">{emergencyContactFields.map((field) => <FieldInput key={field.name} field={field} value={values[field.name] ?? ""} onChange={(value) => update(field.name, value)} />)}</div>
                   </section>
                   <section className="field field-wide photo-field" aria-labelledby="photo-upload-heading">
                     <span className="field-label" id="photo-upload-heading">Upload photo <span className="optional-text">(optional)</span></span>
