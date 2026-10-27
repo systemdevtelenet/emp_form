@@ -23,9 +23,9 @@ begin
   return jsonb_build_object(
     'employeeId', e.id::text,
     'assignments', coalesce((
-      select jsonb_agg(jsonb_build_object('account_id', grouped.account_id::text, 'account_label', grouped.account_name, 'lob_ids', grouped.lob_ids, 'lob_options', grouped.lob_options) order by grouped.account_id)
+      select jsonb_agg(jsonb_build_object('account_id', grouped.account_id::text, 'account_label', grouped.account_name, 'account_type', grouped.account_type, 'lob_ids', grouped.lob_ids, 'lob_options', grouped.lob_options) order by grouped.account_id)
       from (
-        select ea.account_id, a.account_name as account_name,
+        select ea.account_id, a.account_name as account_name, max(ea.account_type) as account_type,
           jsonb_agg(ea.lob_id::text order by ea.lob_id) as lob_ids,
           jsonb_agg(jsonb_build_object('value', ea.lob_id::text, 'label', l.lob_name) order by ea.lob_id) as lob_options
         from public.employee_assignments ea
@@ -43,6 +43,7 @@ begin
       'employee_name', e.employee_name,
       'employee_email', e.employee_email,
       'hire_date', e.hire_date,
+      'employment_status', (select s.status_name from public.statuses s where s.status_id = e.status_id),
       'vici_link', e.vici_link,
       'avatar_url', e.avatar_url,
       'gender', e.gender,
@@ -55,8 +56,15 @@ begin
       'personal_email', e.personal_email,
       'company_email', e.company_email,
       'birthdate', e.birthdate,
+      'tax_status_code', e.tax_status_code,
       'site', e.site,
       'address', e.address,
+      'present_address', e.present_address,
+      'present_address_same_as_home', e.present_address_same_as_home,
+      'emergency_contact_name', e.emergency_contact_name,
+      'emergency_contact_relationship', e.emergency_contact_relationship,
+      'emergency_contact_number', e.emergency_contact_number,
+      'emergency_contact_address', e.emergency_contact_address,
       'Department', e."Department",
       'levels', e.levels,
       'hire_date_leader', e.hire_date_leader,
