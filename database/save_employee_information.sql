@@ -23,8 +23,8 @@ begin
 
   foreach required_field in array array[
     'employee_code', 'first_name', 'last_name', 'personal_email',
-    'gender', 'tax_status_code', 'birthdate', 'contact_number', 'site', 'hire_date',
-    'position_id', 'Department', 'shift_type', 'shift', 'employment_status'
+    'gender', 'tax_status_code', 'birthdate', 'contact_number', 'hire_date',
+    'position_id', 'employment_status'
   ] loop
     if nullif(btrim(p_employee ->> required_field), '') is null then
       raise exception 'Missing required employee field' using errcode = '22023';
@@ -38,6 +38,7 @@ begin
   employee_record := jsonb_populate_record(null::public.employees, p_employee);
   employee_record.employee_email := nullif(btrim(employee_record.employee_email), '');
   employee_record.company_email := nullif(btrim(employee_record.company_email), '');
+  employee_record.position_other := nullif(upper(btrim(employee_record.position_other)), '');
   if upper(btrim(p_employee ->> 'employment_status')) not in ('ACTIVE', 'INACTIVE', 'RESIGNED', 'ON LEAVE', 'AWOL', 'LATERAL') then
     raise exception 'Invalid employment status' using errcode = '22023';
   end if;
@@ -62,6 +63,14 @@ begin
        or not exists (select 1 from public.lobs where lob_id = p_lob_id and account_id = p_account_id)
      )) then
     raise exception 'Invalid position, account, or LOB' using errcode = '22023';
+  end if;
+  if exists (select 1 from public.positions
+      where position_id = employee_record.position_id and upper(btrim(position_name)) = 'OTHER') then
+    if employee_record.position_other is null or length(employee_record.position_other) > 120 then
+      raise exception 'Enter a position when Other is selected' using errcode = '22023';
+    end if;
+  else
+    employee_record.position_other := null;
   end if;
 
   -- Serialize repeated submissions without changing existing employee records.
@@ -88,7 +97,7 @@ begin
   -- Explicit column list excludes privileges, login credentials, and caller-supplied IDs.
   insert into public.employees (
     employee_code, employee_name, employee_email, hire_date, vici_link, avatar_url, status_id,
-    gender, position_id, first_name, last_name, middle_name, suffix, contact_number,
+    gender, position_id, position_other, first_name, last_name, middle_name, suffix, contact_number,
     personal_email, company_email, birthdate, tax_status_code, site, address, present_address,
     present_address_same_as_home, emergency_contact_name, emergency_contact_relationship,
     emergency_contact_number, emergency_contact_address, "Department", levels,
@@ -96,7 +105,7 @@ begin
   ) values (
     employee_record.employee_code, employee_record.employee_name, employee_record.employee_email,
     employee_record.hire_date, employee_record.vici_link, employee_record.avatar_url, employee_record.status_id,
-    employee_record.gender, employee_record.position_id, employee_record.first_name,
+    employee_record.gender, employee_record.position_id, employee_record.position_other, employee_record.first_name,
     employee_record.last_name, employee_record.middle_name, employee_record.suffix,
     employee_record.contact_number, employee_record.personal_email, employee_record.company_email,
     employee_record.birthdate, employee_record.tax_status_code, employee_record.site, employee_record.address,
@@ -124,6 +133,7 @@ begin
       vici_link = employee_record.vici_link,
       gender = employee_record.gender,
       position_id = employee_record.position_id,
+      position_other = employee_record.position_other,
       first_name = employee_record.first_name,
       last_name = employee_record.last_name,
       middle_name = employee_record.middle_name,
@@ -214,7 +224,7 @@ begin
     select 1 from jsonb_array_elements(p_assignments) item
     where jsonb_typeof(item) <> 'object'
       or nullif(item ->> 'account_id', '') is null
-      or upper(coalesce(item ->> 'account_type', '')) not in ('NON VOICE', 'OUTBOUND', 'INBOUND', 'INBOUND/OUTBOUND', 'VOICE', 'ADMIN', 'N/A')
+      or upper(coalesce(item ->> 'account_type', '')) not in ('NON VOICE', 'OUTBOUND', 'INBOUND', 'INBOUND/OUTBOUND', 'VOICE', 'VOICE - INBOUND', 'ADMIN', 'N/A')
       or case when jsonb_typeof(item -> 'lob_ids') = 'array'
               then jsonb_array_length(item -> 'lob_ids') = 0
               else true end

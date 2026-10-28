@@ -2,10 +2,10 @@ export class EmployeeValidationError extends Error {}
 
 const requiredFields: Record<string, string> = {
   employee_code: "Employee ID", first_name: "First name", last_name: "Last name",
-  gender: "Gender", tax_status_code: "Tax Status Code", birthdate: "Birth date", contact_number: "Contact number",
-  personal_email: "Personal email", site: "Work site", hire_date: "Hire date",
+  gender: "Gender", tax_status_code: "Tax Status Code", birthdate: "Birth date", contact_number: "Primary contact number",
+  personal_email: "Personal email", hire_date: "Hire date",
   position_id: "Position",
-  Department: "Department", shift_type: "Shift type", shift: "Shift", employment_status: "Employment status",
+  employment_status: "Employment status",
 };
 
 const textFields = [
@@ -19,9 +19,10 @@ const emailLabels: Record<(typeof emailFields)[number], string> = {
 };
 const addressFields = ["address_building", "address_street", "address_barangay", "address_city", "address_province"];
 const presentAddressFields = ["present_address_building", "present_address_street", "present_address_barangay", "present_address_city", "present_address_province"];
-const levels = ["EXECUTIVE", "CORE MANAGER", "SENIOR LEAD", "JUNIOR LEAD", "APPRENTICE", "SPECIAL OPERATIONS AGENT", "AGENT"];
+const levels = ["EXECUTIVE", "CORE MANAGER", "SENIOR LEAD", "JUNIOR LEAD", "APPRENTICE", "SPECIAL OPERATIONS AGENT", "AGENT", "L1", "L2", "L3"];
 const genders = ["FEMALE", "MALE", "NON-BINARY", "ANOTHER IDENTITY", "PREFER NOT TO SAY"];
 const taxStatusCodes = ["SINGLE", "MARRIED", "WIDOWED", "LEGALLY SEPARATED", "DIVORCED", "ANNULLED"];
+const additionalPhoneLabels = ["COMPANY MOBILE", "PERSONAL MOBILE", "OFFICE / EXTENSION", "OTHER"];
 
 export function validateEmployeeSubmission(input: unknown) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
@@ -38,6 +39,7 @@ export function validateEmployeeSubmission(input: unknown) {
   for (const [key, label] of Object.entries(requiredFields)) {
     if (!values[key]) throw new EmployeeValidationError(`${label} is required. Please go back to complete it.`);
   }
+  if (values.employee_code.length > 100) throw new EmployeeValidationError("Employee Code must be 100 characters or fewer.");
 
   const employee: Record<string, string | number | boolean | null> = {};
   for (const key of textFields) employee[key] = values[key]?.toUpperCase() || null;
@@ -66,10 +68,10 @@ export function validateEmployeeSubmission(input: unknown) {
   }
   employee.employment_status = String(values.employment_status).toUpperCase();
   if (employee.levels !== null && !levels.includes(String(employee.levels))) throw new EmployeeValidationError("Please choose a level.");
-  if (!["DAY SHIFT", "MID SHIFT", "NIGHT SHIFT"].includes(String(employee.shift_type))) {
+  if (employee.shift_type !== null && !["DAY SHIFT", "MID SHIFT", "NIGHT SHIFT"].includes(String(employee.shift_type))) {
     throw new EmployeeValidationError("Please choose a shift type.");
   }
-  if (!/^(0?[1-9]|1[0-2]):[0-5][0-9] (AM|PM) - (0?[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$/.test(String(employee.shift))) {
+  if (employee.shift !== null && !/^(0?[1-9]|1[0-2]):[0-5][0-9] (AM|PM) - (0?[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$/.test(String(employee.shift))) {
     throw new EmployeeValidationError("Enter your shift in the format 9:00 PM - 6:00 AM.");
   }
 
@@ -93,8 +95,14 @@ export function validateEmployeeSubmission(input: unknown) {
   employee.present_address = sameAsHome ? employee.address
     : presentAddressFields.map((key) => values[key]?.toUpperCase()).filter(Boolean).join(", ")
       || (values.present_address_edited !== "true" ? values.present_address?.toUpperCase() || null : null);
-  for (const key of ["emergency_contact_name", "emergency_contact_relationship", "emergency_contact_number", "emergency_contact_address"]) {
+  for (const key of ["emergency_contact_name", "emergency_contact_relationship", "emergency_contact_number", "emergency_contact_additional_number", "emergency_contact_address"]) {
     employee[key] = values[key]?.toUpperCase() || null;
+  }
+  if (employee.emergency_contact_additional_number && (
+    !/^[+0-9() .xX-]{5,40}$/.test(String(employee.emergency_contact_additional_number))
+    || String(employee.emergency_contact_additional_number).replace(/\D/g, "").length < 5
+  )) {
+    throw new EmployeeValidationError("Enter a valid additional emergency contact number, or leave it blank.");
   }
 
   employee.vici_link = values.vici_link || null;
@@ -116,6 +124,27 @@ export function validateEmployeeSubmission(input: unknown) {
     return value;
   }
   employee.position_id = id("position_id");
+  if ((values.position_other?.length ?? 0) > 120) throw new EmployeeValidationError("Other position must be 120 characters or fewer.");
+  employee.position_other = values.position_other?.toUpperCase() || null;
+  let phoneNumbers: { label: string; number: string }[] = [];
+  if (values.additional_contact_numbers) {
+    let parsed: unknown;
+    try { parsed = JSON.parse(values.additional_contact_numbers); } catch { throw new EmployeeValidationError("Please review your additional contact numbers."); }
+    if (!Array.isArray(parsed) || parsed.length > 5) throw new EmployeeValidationError("You can add up to five additional contact numbers.");
+    const seen = new Set([String(employee.contact_number).replace(/\D/g, "")]);
+    phoneNumbers = parsed.map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new EmployeeValidationError("Please review your additional contact numbers.");
+      const rawLabel = String((entry as Record<string, unknown>).label ?? "").trim().toUpperCase();
+      const label = additionalPhoneLabels.includes(rawLabel) ? rawLabel : "OTHER";
+      const number = String((entry as Record<string, unknown>).number ?? "").trim();
+      const digits = number.replace(/\D/g, "");
+      if (!/^[+0-9() .xX-]{5,40}$/.test(number) || digits.length < 5 || seen.has(digits)) {
+        throw new EmployeeValidationError("Enter a unique valid additional contact number.");
+      }
+      seen.add(digits);
+      return { label, number };
+    });
+  }
   let assignments: { account_id: number; account_type: string; lob_ids: number[] }[] = [];
   if (values.account_lob_assignments) {
     let parsed: unknown;
@@ -127,7 +156,7 @@ export function validateEmployeeSubmission(input: unknown) {
       const account_id = Number((entry as Record<string, unknown>).account_id);
       const account_type = String((entry as Record<string, unknown>).account_type ?? "").toUpperCase();
       const rawLobs = (entry as Record<string, unknown>).lob_ids;
-      if (!["NON VOICE", "OUTBOUND", "INBOUND", "INBOUND/OUTBOUND", "VOICE", "ADMIN", "N/A"].includes(account_type)) {
+      if (!["NON VOICE", "OUTBOUND", "INBOUND", "INBOUND/OUTBOUND", "VOICE", "VOICE - INBOUND", "ADMIN", "N/A"].includes(account_type)) {
         throw new EmployeeValidationError("Choose a type of account for every selected account.");
       }
       if (!Number.isSafeInteger(account_id) || account_id <= 0 || accountIds.has(account_id) || !Array.isArray(rawLobs) || rawLobs.length === 0 || rawLobs.length > 100) {
@@ -141,5 +170,5 @@ export function validateEmployeeSubmission(input: unknown) {
       return { account_id, account_type, lob_ids };
     });
   }
-  return { employee, assignments };
+  return { employee, assignments, phoneNumbers };
 }
