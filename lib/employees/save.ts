@@ -1,12 +1,12 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { EmployeeValidationError, validateEmployeeSubmission } from "./validation";
-import { verifyLookupToken } from "./lookup";
+import { createLookupToken, verifyLookupToken } from "./lookup";
 import { EmployeeSaveError } from "./errors";
 export { EmployeeSaveError } from "./errors";
 
 export async function saveEmployeeInformation(input: unknown, photo: File | null, lookupToken = "") {
-  const { employee, assignments } = validateEmployeeSubmission(input);
+  const { employee, assignments, phoneNumbers } = validateEmployeeSubmission(input);
   const existingEmployeeId = lookupToken ? verifyLookupToken(lookupToken, String(employee.employee_code)) : null;
   const imageTypes: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
   let bytes: Uint8Array | undefined;
@@ -37,8 +37,9 @@ export async function saveEmployeeInformation(input: unknown, photo: File | null
     employee.avatar_url = supabase.storage.from(bucket).getPublicUrl(photoPath).data.publicUrl;
   }
 
-  const { data, error } = await supabase.rpc("save_employee_information_with_assignments", {
+  const { data, error } = await supabase.rpc("save_employee_information_with_phones", {
     p_employee: employee, p_assignments: assignments, p_existing_employee_id: existingEmployeeId,
+    p_phone_numbers: phoneNumbers,
   });
   if (error) {
     // Only clean up on a confirmed database rejection. A network failure may occur after a commit.
@@ -46,10 +47,10 @@ export async function saveEmployeeInformation(input: unknown, photo: File | null
       const { error: cleanupError } = await supabase.storage.from(bucket).remove([photoPath]);
       if (cleanupError) console.error("Employee photo cleanup failed", cleanupError.name);
     }
-    if (error.code === "23505") throw new EmployeeSaveError("This Employee ID or Company Gmail is already registered. Please contact HR to update your record.", 409);
+    if (error.code === "23505") throw new EmployeeSaveError("This Employee Code or Company Gmail is already registered. Choose a different code or contact HR.", 409);
     if (error.code === "P0002") throw new EmployeeSaveError("Your profile has changed or is no longer available. Please check your Employee Code again.", 409);
     if (["23503", "22023", "22007", "22008", "22P02"].includes(error.code)) {
-      throw new EmployeeSaveError("Some details are invalid. Please review your work details and try again.", 400);
+      throw new EmployeeSaveError("Some details are invalid. Please review your contact and work details and try again.", 400);
     }
     console.error("Employee save failed", { code: error.code || "NETWORK_ERROR" });
     throw new EmployeeSaveError("We could not confirm your submission. Please try again. If your record is already registered, contact HR.");
@@ -57,5 +58,5 @@ export async function saveEmployeeInformation(input: unknown, photo: File | null
   if (typeof data !== "string" || !/^\d+$/.test(data)) {
     throw new EmployeeSaveError("We could not confirm your submission. Please contact HR before submitting again.");
   }
-  return { employeeId: data };
+  return { employeeId: data, lookupToken: createLookupToken(data, String(employee.employee_code)) };
 }

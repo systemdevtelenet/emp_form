@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { BriefcaseIcon, EyeIcon, IdentificationIcon, PhoneIcon, UserIcon } from "@heroicons/react/24/outline";
 import "./preview.css";
 
 type Field = {
@@ -50,6 +51,7 @@ const steps = [
       { name: "suffix", label: "Suffix (optional)", hint: "Jr., III, etc." },
       { name: "gender", label: "Gender", required: true, options: [{ value: "FEMALE", label: "Female" }, { value: "MALE", label: "Male" }, { value: "NON-BINARY", label: "Non-binary" }, { value: "ANOTHER IDENTITY", label: "Another identity" }, { value: "PREFER NOT TO SAY", label: "Prefer not to say" }] },
       { name: "birthdate", label: "Birth date", type: "date", required: true },
+      { name: "age", label: "Age", readOnly: true, hint: "Calculated from your birth date using the company spreadsheet formula." },
       { name: "tax_status_code", label: "Tax Status Code", hint: "Select your marital status for tax records.", required: true, options: [{ value: "SINGLE", label: "Single" }, { value: "MARRIED", label: "Married" }, { value: "WIDOWED", label: "Widowed" }, { value: "LEGALLY SEPARATED", label: "Legally separated" }, { value: "DIVORCED", label: "Divorced" }, { value: "ANNULLED", label: "Annulled" }] },
       { name: "employee_name", label: "Name used in CTNP systems", hint: "This name is filled in automatically from the name fields above.", readOnly: true },
     ],
@@ -59,11 +61,11 @@ const steps = [
     subtitle: "Share the contact information you would like CTNP to keep on file.",
     icon: "02",
     fields: [
-      { name: "contact_number", label: "Contact number", type: "tel", required: true },
+      { name: "contact_number", label: "Primary contact number", type: "tel", required: true },
       { name: "employee_email", label: "Company Gmail", type: "email", placeholder: "your-name.telenet@gmail.com" },
       { name: "personal_email", label: "Personal email", type: "email", required: true },
       { name: "company_email", label: "Company email", type: "email", placeholder: "your-name@cebutele-net.com", pattern: "[^\\s@]+@cebutele-net\\.com", title: "Use your company email ending in @cebutele-net.com." },
-      { name: "site", label: "Work site", required: true, options: [{ value: "ALABANG", label: "ALABANG" }, { value: "AYALA", label: "AYALA" }, { value: "FAUSTINA", label: "FAUSTINA" }, { value: "USA", label: "USA" }] },
+      { name: "site", label: "Work site", options: [{ value: "ALABANG", label: "ALABANG" }, { value: "AYALA", label: "AYALA" }, { value: "FAUSTINA", label: "FAUSTINA" }, { value: "USA", label: "USA" }] },
     ],
   },
   {
@@ -72,13 +74,13 @@ const steps = [
     icon: "03",
     fields: [
       { name: "hire_date", label: "Hire date", type: "date", required: true },
-      { name: "years_of_service", label: "Years of service", readOnly: true, hint: "Calculated automatically from your hire date." },
+      { name: "years_of_service", label: "Years of service", readOnly: true, hint: "Calculated from your hire date using the company spreadsheet formula." },
       { name: "employment_status", label: "Employment status", required: true, options: [{ value: "ACTIVE", label: "Active" }, { value: "INACTIVE", label: "Inactive" }] },
       { name: "position_id", label: "Position", required: true },
-      { name: "Department", label: "Department", required: true },
-      { name: "levels", label: "Level", options: [{ value: "EXECUTIVE", label: "Executive" }, { value: "CORE MANAGER", label: "Core Manager" }, { value: "SENIOR LEAD", label: "Senior Lead" }, { value: "JUNIOR LEAD", label: "Junior Lead" }, { value: "APPRENTICE", label: "Apprentice" }, { value: "SPECIAL OPERATIONS AGENT", label: "Special Operations Agent" }, { value: "AGENT", label: "Agent" }] },
-      { name: "shift_type", label: "Shift type", required: true, options: [{ value: "DAY SHIFT", label: "Day shift" }, { value: "MID SHIFT", label: "Mid shift" }, { value: "NIGHT SHIFT", label: "Night shift" }] },
-      { name: "shift", label: "Shift", required: true, placeholder: "9:00 PM - 6:00 AM", hint: "Use the format h:mm AM - h:mm AM.", pattern: "(0?[1-9]|1[0-2]):[0-5][0-9] (AM|PM) - (0?[1-9]|1[0-2]):[0-5][0-9] (AM|PM)", title: "Use a format such as 9:00 PM - 6:00 AM." },
+      { name: "Department", label: "Department" },
+      { name: "levels", label: "Level", options: [{ value: "EXECUTIVE", label: "Executive" }, { value: "CORE MANAGER", label: "Core Manager" }, { value: "SENIOR LEAD", label: "Senior Lead" }, { value: "JUNIOR LEAD", label: "Junior Lead" }, { value: "APPRENTICE", label: "Apprentice" }, { value: "SPECIAL OPERATIONS AGENT", label: "Special Operations Agent" }, { value: "AGENT", label: "Agent" }, { value: "L1", label: "L1" }, { value: "L2", label: "L2" }, { value: "L3", label: "L3" }] },
+      { name: "shift_type", label: "Shift type", options: [{ value: "DAY SHIFT", label: "Day shift" }, { value: "MID SHIFT", label: "Mid shift" }, { value: "NIGHT SHIFT", label: "Night shift" }] },
+      { name: "shift", label: "Shift", placeholder: "9:00 PM - 6:00 AM", hint: "Use the format h:mm AM - h:mm AM if you enter a shift.", pattern: "(0?[1-9]|1[0-2]):[0-5][0-9] (AM|PM) - (0?[1-9]|1[0-2]):[0-5][0-9] (AM|PM)", title: "Use a format such as 9:00 PM - 6:00 AM." },
     ],
   },
   {
@@ -108,23 +110,46 @@ const addressFields: Field[] = [
   { name: "address_province", label: "Province" },
 ];
 const presentAddressFields: Field[] = addressFields.map((field) => ({ ...field, name: field.name.replace(/^address_/, "present_address_") }));
-const accountTypeOptions = ["NON VOICE", "OUTBOUND", "INBOUND", "INBOUND/OUTBOUND", "VOICE", "ADMIN", "N/A"].map((value) => ({ value, label: value }));
+const accountTypeOptions = ["NON VOICE", "OUTBOUND", "INBOUND", "INBOUND/OUTBOUND", "VOICE", "VOICE - INBOUND", "ADMIN", "N/A"].map((value) => ({ value, label: value }));
+type AdditionalPhone = { label: string; number: string };
+function parseAdditionalPhones(value?: string): AdditionalPhone[] {
+  try {
+    const parsed: unknown = JSON.parse(value || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object" && typeof item.number === "string"))
+      .map((item) => ({ label: typeof item.label === "string" && item.label.trim() ? item.label : "OTHER", number: String(item.number) }));
+  } catch { return []; }
+}
 const emergencyContactFields: Field[] = [
   { name: "emergency_contact_name", label: "Emergency contact name" },
   { name: "emergency_contact_relationship", label: "Relationship" },
   { name: "emergency_contact_number", label: "Contact number", type: "tel" },
+  { name: "emergency_contact_additional_number", label: "Additional number", type: "tel" },
   { name: "emergency_contact_address", label: "Address", wide: true },
 ];
 
-function yearsOfService(hireDate: string, currentDate: string) {
-  if (!hireDate || !currentDate) return "Enter a hire date to calculate";
-  const [hireYear, hireMonth, hireDay] = hireDate.split("-").map(Number);
-  const [currentYear, currentMonth, currentDay] = currentDate.split("-").map(Number);
-  if (!hireYear || !hireMonth || !hireDay || !currentYear || !currentMonth || !currentDay) return "Enter a valid hire date";
-  let years = currentYear - hireYear;
-  if (currentMonth < hireMonth || (currentMonth === hireMonth && currentDay < hireDay)) years -= 1;
+function yearsOfService(hireDate: string, currentTime: number | null) {
+  if (!hireDate || currentTime === null) return "Enter a hire date to calculate";
+  const [year, month, day] = hireDate.split("-").map(Number);
+  const hire = new Date(year, month - 1, day);
+  if (!year || !month || !day || hire.getFullYear() !== year || hire.getMonth() !== month - 1 || hire.getDate() !== day) {
+    return "Enter a valid hire date";
+  }
+  const years = (currentTime - hire.getTime()) / (365 * 24 * 60 * 60 * 1000);
   if (years < 0) return "Hire date is in the future";
-  return `${years} ${years === 1 ? "year" : "years"}`;
+  return `${years.toFixed(3)} years`;
+}
+
+function ageInYears(birthDate: string, currentTime: number | null) {
+  if (!birthDate || currentTime === null) return "Enter a birth date to calculate";
+  const [year, month, day] = birthDate.split("-").map(Number);
+  const birth = new Date(year, month - 1, day);
+  if (!year || !month || !day || birth.getFullYear() !== year || birth.getMonth() !== month - 1 || birth.getDate() !== day) {
+    return "Enter a valid birth date";
+  }
+  const years = (currentTime - birth.getTime()) / (365 * 24 * 60 * 60 * 1000);
+  if (years < 0) return "Birth date is in the future";
+  return `${years.toFixed(2)} years`;
 }
 
 function FieldInput({ field, value, onChange, uppercase = true }: { field: Field; value: string; onChange: (value: string) => void; uppercase?: boolean }) {
@@ -145,8 +170,89 @@ function FieldInput({ field, value, onChange, uppercase = true }: { field: Field
   );
 }
 
+function PositionCombobox({ options, value, onChange }: { options: { value: string; label: string }[]; value: string; onChange: (value: string) => void }) {
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? "";
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const visibleQuery = open ? query : selectedLabel;
+  const filteredOptions = options.filter((option) => option.label.toLowerCase().includes(visibleQuery.trim().toLowerCase()));
+
+  useEffect(() => {
+    if (open) listRef.current?.querySelector(".position-search-option.active")?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, open]);
+
+  function choose(option: { value: string; label: string }) {
+    onChange(option.value);
+    setQuery(option.label);
+    setOpen(false);
+    inputRef.current?.setCustomValidity("");
+  }
+
+  function restoreSelection() {
+    setOpen(false);
+    setQuery(selectedLabel);
+    inputRef.current?.setCustomValidity("");
+  }
+
+  return (
+    <div className="field position-search-field">
+      <label className="field-label" htmlFor="employee-position-search">Position<span className="required-mark"> *</span></label>
+      <div className="position-search-control">
+        <input
+          ref={inputRef}
+          id="employee-position-search"
+          type="search"
+          value={visibleQuery}
+          required
+          autoComplete="off"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls="employee-position-options"
+          aria-activedescendant={open && filteredOptions[activeIndex] ? `employee-position-option-${filteredOptions[activeIndex].value}` : undefined}
+          placeholder="Search or select a position"
+          onFocus={() => { setQuery(selectedLabel); setOpen(true); }}
+          onBlur={restoreSelection}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setOpen(true);
+            setActiveIndex(0);
+            if (listRef.current) listRef.current.scrollTop = 0;
+            event.target.setCustomValidity("Select a position from the list.");
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              setOpen(true);
+              setActiveIndex((index) => Math.min(index + 1, Math.max(filteredOptions.length - 1, 0)));
+            } else if (event.key === "ArrowUp") {
+              event.preventDefault();
+              setActiveIndex((index) => Math.max(index - 1, 0));
+            } else if (event.key === "Enter" && open) {
+              event.preventDefault();
+              if (filteredOptions[activeIndex]) choose(filteredOptions[activeIndex]);
+            } else if (event.key === "Escape") {
+              event.preventDefault();
+              restoreSelection();
+            }
+          }}
+        />
+        <button type="button" className="position-search-toggle" aria-label="Show position choices" aria-expanded={open} onMouseDown={(event) => event.preventDefault()} onClick={() => { inputRef.current?.focus(); setQuery(""); setActiveIndex(0); setOpen(true); if (listRef.current) listRef.current.scrollTop = 0; }}>⌄</button>
+        {open && <div ref={listRef} id="employee-position-options" className="position-search-options" role="listbox" aria-label="Position choices">
+          {filteredOptions.length ? filteredOptions.map((option, index) => (
+            <button key={option.value} id={`employee-position-option-${option.value}`} type="button" role="option" aria-selected={option.value === value} className={index === activeIndex ? "position-search-option active" : "position-search-option"} onMouseDown={(event) => event.preventDefault()} onMouseEnter={() => setActiveIndex(index)} onClick={() => choose(option)}>{option.label}</button>
+          )) : <div className="position-search-empty">No matching positions. Clear the search and choose Other to type a new title.</div>}
+        </div>}
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
-  const [today, setToday] = useState("");
+  const [now, setNow] = useState<number | null>(null);
   const [codeChecked, setCodeChecked] = useState(false);
   const [employeeCode, setEmployeeCode] = useState("");
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -163,6 +269,8 @@ export default function Home() {
   const [activeStep, setActiveStep] = useState(0);
   const [values, setValues] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [viewOnly, setViewOnly] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [submissionError, setSubmissionError] = useState("");
   const submitting = useRef(false);
@@ -175,12 +283,9 @@ export default function Home() {
   const pendingDraft = useRef<FormDraft | null>(null);
 
   useEffect(() => {
-    const refreshToday = () => {
-      const now = new Date();
-      setToday(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`);
-    };
-    refreshToday();
-    const interval = window.setInterval(refreshToday, 60 * 60 * 1000);
+    const refreshNow = () => setNow(Date.now());
+    refreshNow();
+    const interval = window.setInterval(refreshNow, 60 * 60 * 1000);
     return () => window.clearInterval(interval);
   }, []);
 
@@ -263,7 +368,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!draftReady) return;
-    if (submitted || (!codeChecked && !pendingDraft.current) || (codeChecked && !values.employee_code)) {
+    if (submitted || (viewOnly && codeChecked) || (!codeChecked && !pendingDraft.current) || (codeChecked && !values.employee_code)) {
       try { localStorage.removeItem(draftStorageKey); } catch {}
       return;
     }
@@ -280,16 +385,19 @@ export default function Home() {
     } catch {
       // A full or unavailable browser storage must not interrupt form entry.
     }
-  }, [draftReady, codeChecked, submitted, values, existingProfile, activeStep, employeeCode]);
+  }, [draftReady, codeChecked, submitted, viewOnly, values, existingProfile, activeStep, employeeCode]);
 
   const step = steps[activeStep];
   const progress = ((activeStep + 1) / steps.length) * 100;
   const previewSections = [
-    { title: steps[0].title, index: 0, fields: steps[0].fields },
-    { title: steps[1].title, index: 1, fields: [...steps[1].fields, { name: "address", label: "Home address" }, { name: "present_address", label: "Present address" }, ...emergencyContactFields, { name: "photo", label: "Profile photo" }] },
-    { title: steps[2].title, index: 2, fields: [...steps[2].fields.filter((field) => field.name !== "shift"), { name: "account_lob_assignments", label: "Accounts and LOBs" }, ...(values.hire_date_leader ? [{ name: "hire_date_leader", label: "Leadership start date" }] : []), steps[2].fields.find((field) => field.name === "shift")!] },
-    { title: steps[3].title, index: 3, fields: steps[3].fields },
+    { title: steps[0].title, icon: UserIcon, index: 0, fields: steps[0].fields },
+    { title: steps[1].title, icon: PhoneIcon, index: 1, fields: [steps[1].fields[0], { name: "additional_contact_numbers", label: "Additional contact numbers" }, ...steps[1].fields.slice(1), { name: "address", label: "Home address" }, { name: "present_address", label: "Present address" }, ...emergencyContactFields, { name: "photo", label: "Profile photo" }] },
+    { title: steps[2].title, icon: BriefcaseIcon, index: 2, fields: [...steps[2].fields.filter((field) => field.name !== "shift"), { name: "account_lob_assignments", label: "Accounts and LOBs" }, ...(values.hire_date_leader ? [{ name: "hire_date_leader", label: "Leadership start date" }] : []), steps[2].fields.find((field) => field.name === "shift")!] },
+    { title: steps[3].title, icon: IdentificationIcon, index: 3, fields: steps[3].fields },
   ];
+  const selectedPosition = positionOptions.find((option) => option.value === values.position_id)
+    ?? (savedOptions.position_id?.value === values.position_id ? savedOptions.position_id : undefined);
+  const isOtherPosition = selectedPosition?.label.trim().toUpperCase() === "OTHER";
 
   async function checkEmployeeCode(codeToCheck = employeeCode, restoredDraft?: FormDraft) {
     if (checkingCode.current) return;
@@ -335,7 +443,8 @@ export default function Home() {
       if (photoPreview.startsWith("blob:")) URL.revokeObjectURL(photoPreview);
       setPhotoPreview(result.found ? result.values.avatar_url || "" : "");
       cancelPhoto();
-      setActiveStep(draftToRestore?.activeStep ?? 0);
+      setActiveStep(draftToRestore?.activeStep ?? (result.found ? steps.length - 1 : 0));
+      setViewOnly(Boolean(result.found && !draftToRestore));
       pendingDraft.current = null;
       setSubmitted(false);
       setSubmissionError("");
@@ -350,7 +459,11 @@ export default function Home() {
 
   function previewValue(name: string) {
     if (name === "photo") return photoFile?.name ?? "Not provided";
-    if (name === "years_of_service") return yearsOfService(values.hire_date ?? "", today);
+    if (name === "additional_contact_numbers") return parseAdditionalPhones(values.additional_contact_numbers)
+      .map((phone) => phone.number)
+      .join("; ") || "Not provided";
+    if (name === "years_of_service") return yearsOfService(values.hire_date ?? "", now);
+    if (name === "age") return ageInYears(values.birthdate ?? "", now);
     if (name === "account_lob_assignments") {
       try {
         const assignments = JSON.parse(values.account_lob_assignments || "[]") as { account_id: string; account_type?: string; lob_ids: string[] }[];
@@ -364,7 +477,9 @@ export default function Home() {
     }
     const value = values[name];
     if (!value) return "Not provided";
-    if (name === "position_id") return positionOptions.find((option) => option.value === value)?.label ?? (savedOptions[name]?.value === value ? savedOptions[name].label : value);
+    if (name === "position_id") return isOtherPosition
+      ? `Other: ${values.position_other?.trim() || "Not provided"}`
+      : selectedPosition?.label ?? value;
     for (const section of steps) {
       const field: Field | undefined = section.fields.find((candidate) => candidate.name === name);
       const option = field?.options?.find((candidate) => candidate.value === value);
@@ -377,7 +492,7 @@ export default function Home() {
   function update(name: string, value: string) {
     setValues((current) => {
       const emailFields = ["employee_email", "personal_email", "company_email"];
-      const next = { ...current, [name]: emailFields.includes(name) || name === "vici_link" || name === "account_lob_assignments" ? value : value.toUpperCase() };
+      const next = { ...current, [name]: emailFields.includes(name) || name === "vici_link" || name === "account_lob_assignments" || name === "additional_contact_numbers" ? value : value.toUpperCase() };
       if (["first_name", "middle_name", "last_name", "suffix"].includes(name)) {
         next.employee_name = [next.first_name, next.middle_name, next.last_name, next.suffix]
           .map((part) => part?.trim())
@@ -424,6 +539,22 @@ export default function Home() {
     setShowLookupModal(false);
   }
 
+  function closeLookupModal() {
+    setShowLookupModal(false);
+    setCodeChecked(false);
+    setViewOnly(false);
+    setLookupToken("");
+  }
+
+  function editProfile() {
+    setViewOnly(false);
+    setSubmitted(false);
+    if (!lookupToken) {
+      setEmployeeCode(values.employee_code || "");
+      setCodeChecked(false);
+    }
+  }
+
   async function finish() {
     if (submitting.current || submitted) return;
     submitting.current = true;
@@ -439,7 +570,12 @@ export default function Home() {
       if (!result) throw new Error("Your submission could not be confirmed. Your answers are still here; please try again.");
       if (!response.ok) throw new Error(result.error || "Your information could not be saved. Please try again.");
       if (!result.employeeId) throw new Error("We could not confirm your submission. Please contact HR.");
+      if (typeof result.lookupToken === "string") setLookupToken(result.lookupToken);
+      setEmployeeCode(values.employee_code);
+      setExistingProfile(true);
       setSubmitted(true);
+      setViewOnly(true);
+      setShowSuccessModal(true);
     } catch (error) {
       setSubmissionError(error instanceof TypeError ? "Unable to connect. Your answers are still here; please try again." : error instanceof Error ? error.message : "Your information could not be saved. Please try again.");
     } finally {
@@ -497,7 +633,7 @@ export default function Home() {
         <div className="intro">
           <div className="eyebrow"><span /> PEOPLE OPERATIONS</div>
           <h1>Employee Information</h1>
-          <p>{submitted ? "Submitted. Thank you!" : codeChecked ? "Please complete each section with your information. You can go back to review your answers." : "Enter your Employee Code to check for a saved profile before you begin."}</p>
+          <p>{viewOnly ? "Review the saved profile below. Select Edit profile if you need to make changes." : codeChecked ? "Please complete each section with your information. You can go back to review your answers." : "Enter your Employee Code to check for a saved profile before you begin."}</p>
         </div>
 
         <section className="form-card" aria-label="New employee form">
@@ -511,13 +647,8 @@ export default function Home() {
               <p className="employee-code-help">If no saved profile is found, you can complete a new employee profile.</p>
               {lookupError && <div className="notice" role="alert"><span>!</span><div><strong>Unable to check your code</strong><p>{lookupError}</p></div></div>}
             </form>
-          ) : submitted ? (
-            <div className="notice employee-save-success" role="status">
-              <span aria-hidden="true">✓</span>
-              <div><strong>Submitted</strong><p>Thank you!</p></div>
-            </div>
           ) : (<>
-          <div className="progress-area">
+          {!viewOnly && <div className="progress-area">
             <div className="step-track" aria-label={`Step ${activeStep + 1} of ${steps.length}`}>
               <div className="track-line"><span style={{ width: `${progress}%` }} /></div>
               {steps.map((item, index) => (
@@ -528,32 +659,36 @@ export default function Home() {
               ))}
             </div>
             <div className="step-count">STEP {String(activeStep + 1).padStart(2, "0")} <span>OF {String(steps.length).padStart(2, "0")}</span></div>
-          </div>
+          </div>}
 
-          <form aria-busy={saving} onSubmit={(event) => { event.preventDefault(); if (activeStep < steps.length - 1) { setActiveStep(activeStep + 1); setSubmitted(false); setSubmissionError(""); } else { void finish(); } }}>
+          <form className={viewOnly ? "employee-view-form" : undefined} aria-busy={saving} onSubmit={(event) => { event.preventDefault(); if (viewOnly) return; if (activeStep < steps.length - 1) { setActiveStep(activeStep + 1); setSubmitted(false); setSubmissionError(""); } else { void finish(); } }}>
             <div className="form-heading">
-              <div className="heading-icon">{step.icon}</div>
-              <div><h2>{step.title}</h2><p>{step.subtitle}</p></div>
+              <div className="heading-icon">{viewOnly ? "✓" : step.icon}</div>
+              <div><h2>{viewOnly ? "Employee profile" : step.title}</h2><p>{viewOnly ? "Saved information · view only" : step.subtitle}</p></div>
             </div>
-            <div className="employee-code-context">
-              <div><strong>{values.employee_code}</strong><span>{existingProfile ? "Saved profile loaded. Review and update your information." : "No saved profile found. Complete your information below."}</span></div>
-              <button type="button" disabled={saving} onClick={() => { setEmployeeCode(values.employee_code || ""); setLookupError(""); setShowLookupModal(false); setCodeChecked(false); }}>Change Employee Code</button>
+            <div className={`employee-code-context${viewOnly ? " employee-code-context-view" : ""}`}>
+              <div><strong>Employee Code: {values.employee_code}</strong><span className={existingProfile ? undefined : "employee-code-context-empty"}>{viewOnly ? (lookupToken ? "Saved profile loaded. Select Edit profile to make changes." : "Your profile was saved. Check the Employee Code again before editing.") : existingProfile ? "Saved profile loaded. Review and update your information." : "No saved profile found. Complete your information below."}</span></div>
+              <button type="button" disabled={saving} onClick={() => { setEmployeeCode(values.employee_code || ""); setLookupError(""); setShowLookupModal(false); setViewOnly(false); setCodeChecked(false); }}>Change Employee Code</button>
             </div>
+            {viewOnly && <div className="employee-view-actions"><span><EyeIcon className="employee-view-icon" aria-hidden="true" />View only</span><button type="button" className="next-button" onClick={editProfile}>{lookupToken ? "Edit profile" : "Check code to edit"}</button></div>}
 
             {activeStep === steps.length - 1 ? (
               <div className="employee-preview-content">
                 <section className="employee-preview-hero" aria-label="Employee profile preview">
                   <div className="employee-preview-avatar">{photoPreview ? <img src={photoPreview} alt="Employee profile" /> : (values.first_name?.[0] ?? "E") + (values.last_name?.[0] ?? "")}</div>
                   <div className="employee-preview-identity">
-                    <span className="employee-preview-kicker">EMPLOYEE PROFILE PREVIEW</span>
+                    <span className="employee-preview-kicker">{viewOnly ? "EMPLOYEE PROFILE" : "EMPLOYEE PROFILE PREVIEW"}</span>
                     <h3>{values.employee_name || "YOUR NAME WILL APPEAR HERE"}</h3>
-                    <p>{previewValue("position_id")}<span aria-hidden="true"> · </span>{previewValue("Department")}</p>
+                    <div className="employee-preview-meta">
+                      <p><strong>Position:</strong> {previewValue("position_id")}</p>
+                      <p><strong>Department:</strong> {previewValue("Department")}</p>
+                    </div>
                   </div>
                   <span className="employee-preview-employeeId"><small>EMPLOYEE CODE</small>{previewValue("employee_code")}</span>
                 </section>
                 {previewSections.map((section) => (
                   <section className="employee-preview-section" key={section.title}>
-                    <div className="employee-preview-sectionHeading"><h3>{section.title}</h3><button type="button" disabled={saving || submitted} onClick={() => goToStep(section.index)}>Edit</button></div>
+                    <div className="employee-preview-sectionHeading"><h3><section.icon className="employee-preview-sectionIcon" aria-hidden="true" />{section.title}</h3>{!viewOnly && <button type="button" disabled={saving || submitted} onClick={() => goToStep(section.index)}>Edit</button>}</div>
                     <dl className="employee-preview-grid">
                       {section.fields.filter((field) => field.name !== "employee_name" && field.name !== "photo").map((field) => (
                         <div className="employee-preview-item" key={field.name}>
@@ -564,7 +699,7 @@ export default function Home() {
                     </dl>
                   </section>
                 ))}
-                {!submitted && <div className="review-panel">
+                {!submitted && !viewOnly && <div className="review-panel">
                   <div className="review-icon">✓</div>
                   <div><strong>Review complete?</strong><p>Check your details above, then select Submit. You can edit any section before continuing.</p></div>
                 </div>}
@@ -599,7 +734,8 @@ export default function Home() {
                 })}</div>
               </section>}
               {step.fields.flatMap((field) => {
-                if (field.name === "years_of_service") return [<label className="field" htmlFor="employee-years-of-service" key={field.name}><span className="field-label">{field.label}</span><input id="employee-years-of-service" className="calculated-display" type="text" value={yearsOfService(values.hire_date ?? "", today)} readOnly /><span className="field-hint">Calculated automatically from your hire date.</span></label>];
+                if (field.name === "age") return [<label className="field" htmlFor="employee-age" key={field.name}><span className="field-label">{field.label}</span><input id="employee-age" className="calculated-display" type="text" value={ageInYears(values.birthdate ?? "", now)} readOnly /><span className="field-hint">Calculated from your birth date using the company spreadsheet formula.</span></label>];
+                if (field.name === "years_of_service") return [<label className="field" htmlFor="employee-years-of-service" key={field.name}><span className="field-label">{field.label}</span><input id="employee-years-of-service" className="calculated-display" type="text" value={yearsOfService(values.hire_date ?? "", now)} readOnly /><span className="field-hint">Calculated from your hire date using the company spreadsheet formula.</span></label>];
                 let configuredField: Field = field.name === "position_id"
                   ? { ...field, options: positionOptions }
                   : field;
@@ -609,7 +745,23 @@ export default function Home() {
                   && (field.name !== "lob_id" || savedOptions.account_id?.value === values.account_id)) {
                   configuredField = { ...configuredField, options: [...configuredField.options, savedOption] };
                 }
-                const fieldInput = <FieldInput key={field.name} field={configuredField} value={values[field.name] ?? ""} onChange={(value) => update(field.name, value)} uppercase={field.type !== "url" && !(activeStep === 1 && ["employee_email", "personal_email", "company_email"].includes(field.name))} />;
+                const fieldInput = field.name === "position_id"
+                  ? <PositionCombobox key={field.name} options={configuredField.options ?? []} value={values.position_id ?? ""} onChange={(value) => update("position_id", value)} />
+                  : <FieldInput key={field.name} field={configuredField} value={values[field.name] ?? ""} onChange={(value) => update(field.name, value)} uppercase={field.type !== "url" && !(activeStep === 1 && ["employee_email", "personal_email", "company_email"].includes(field.name))} />;
+                if (activeStep === 1 && field.name === "contact_number") {
+                  const phones = parseAdditionalPhones(values.additional_contact_numbers);
+                  const setPhones = (next: AdditionalPhone[]) => update("additional_contact_numbers", JSON.stringify(next));
+                  return [fieldInput, <section className="field-wide additional-phones" aria-labelledby="additional-phones-heading" key="additional-phones">
+                    <div className="additional-phones-heading"><div><span className="field-label" id="additional-phones-heading">Additional contact numbers</span><span className="field-hint">Optional. Add another number you can be reached on.</span></div><button type="button" className="back-button" disabled={phones.length >= 5} onClick={() => setPhones([...phones, { label: "OTHER", number: "" }])}>+ Add another number</button></div>
+                    {phones.map((phone, index) => <div className="additional-phone-row" key={index}>
+                      <FieldInput field={{ name: `additional_phone_number_${index}`, label: `Additional number ${index + 1}`, type: "tel", required: true, placeholder: "Enter another number" }} value={phone.number} onChange={(number) => setPhones(phones.map((item, itemIndex) => itemIndex === index ? { ...item, number } : item))} />
+                      <button type="button" className="additional-phone-remove" aria-label={`Remove additional number ${index + 1}`} onClick={() => setPhones(phones.filter((_, itemIndex) => itemIndex !== index))}>Remove</button>
+                    </div>)}
+                  </section>];
+                }
+                if (activeStep === 2 && field.name === "position_id" && isOtherPosition) {
+                  return [fieldInput, <FieldInput key="position_other" field={{ name: "position_other", label: "Type your position", required: true, placeholder: "Enter your position" }} value={values.position_other ?? ""} onChange={(value) => update("position_other", value)} />];
+                }
                 if (activeStep === 2 && field.name === "levels" && (values.levels === "JUNIOR LEAD" || values.hire_date_leader)) {
                   return [fieldInput, <FieldInput key="hire_date_leader" field={{ name: "hire_date_leader", label: "Leadership start date", type: "date", required: values.levels === "JUNIOR LEAD" }} value={values.hire_date_leader ?? ""} onChange={(value) => update("hire_date_leader", value)} />];
                 }
@@ -658,13 +810,13 @@ export default function Home() {
             </div>
             )}
             {submissionError && <div className="notice" role="alert"><span>!</span><div><strong>Submission could not be completed</strong><p>{submissionError}</p></div></div>}
-            <div className="form-footer">
+            {!viewOnly && <div className="form-footer">
               <span className="save-note"><span className="save-icon">▣</span> Draft saved in this browser</span>
               <div className="actions">
                 {activeStep > 0 && !submitted && <button type="button" className="back-button" disabled={saving} onClick={() => goToStep(activeStep - 1)}>← <span>Back</span></button>}
                 <button className="next-button" type="submit" disabled={saving || submitted}>{submitted ? "Saved" : saving ? "Saving…" : activeStep === steps.length - 1 ? existingProfile ? "Save changes" : "Submit" : "Continue"}{!saving && !submitted && <span>→</span>}</button>
               </div>
-            </div>
+            </div>}
           </form>
           </>)}
         </section>
@@ -673,6 +825,7 @@ export default function Home() {
       {showLookupModal && createPortal((
         <div className="modal-backdrop lookup-modal-backdrop">
           <section className="lookup-modal" role="dialog" aria-modal="true" aria-labelledby="lookup-modal-title" aria-describedby="lookup-modal-description">
+            <button type="button" className="modal-close lookup-modal-close" aria-label="Close account popup" onClick={closeLookupModal}>×</button>
             <div className={`lookup-modal-mark${existingProfile ? " lookup-modal-mark-found" : ""}`} aria-hidden="true">{existingProfile ? "✓" : "i"}</div>
             <h2 id="lookup-modal-title">{existingProfile ? detectedAssignments.length ? "Account detected" : "Employee ID found" : "No account exists yet"}</h2>
             {existingProfile && values.employee_name && <p className="lookup-employee-name">{values.employee_name}</p>}
@@ -690,6 +843,17 @@ export default function Home() {
             <button type="button" className="next-button lookup-modal-action" autoFocus onClick={continueAfterLookup}>
               {existingProfile ? detectedAssignments.length ? "Load saved profile" : "Continue and add account" : "Create new profile"}<span aria-hidden="true">→</span>
             </button>
+          </section>
+        </div>
+      ), document.body)}
+      {showSuccessModal && createPortal((
+        <div className="modal-backdrop lookup-modal-backdrop" role="presentation">
+          <section className="lookup-modal" role="dialog" aria-modal="true" aria-labelledby="success-modal-title" aria-describedby="success-modal-description">
+            <button type="button" className="modal-close lookup-modal-close" aria-label="Close success message" onClick={() => setShowSuccessModal(false)}>×</button>
+            <div className="lookup-modal-mark lookup-modal-mark-found" aria-hidden="true">✓</div>
+            <h2 id="success-modal-title">Information saved successfully</h2>
+            <p id="success-modal-description">Thank you! Your employee information has been saved.</p>
+            <button type="button" className="next-button lookup-modal-action" autoFocus onClick={() => setShowSuccessModal(false)}>Done</button>
           </section>
         </div>
       ), document.body)}

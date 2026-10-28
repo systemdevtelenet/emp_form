@@ -12,5 +12,5 @@ alter table public.employee_assignments drop constraint if exists employee_assig
 alter table public.employee_assignments
   add constraint employee_assignments_account_type_check
   check (account_type is null or account_type in (
-    'NON VOICE', 'OUTBOUND', 'INBOUND', 'INBOUND/OUTBOUND', 'VOICE', 'ADMIN', 'N/A'
+    'NON VOICE', 'OUTBOUND', 'INBOUND', 'INBOUND/OUTBOUND', 'VOICE', 'VOICE - INBOUND', 'ADMIN', 'N/A'
   )) not valid;

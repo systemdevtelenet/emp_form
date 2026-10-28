@@ -25,7 +25,7 @@ button { cursor: pointer; }
 .eyebrow span { width: 17px; height: 2px; background: #29bca7; }
 .intro h1 { margin: 0; color: #183c3d; font-size: clamp(30px, 4vw, 39px); line-height: 1.1; letter-spacing: -1.5px; }
 .intro p { margin: 9px 0 0; color: #668081; font-size: 14px; }
-.form-card { overflow: hidden; border: 1px solid rgba(42, 90, 87, .08); border-radius: 17px; background: rgba(255,255,255,.96); box-shadow: 0 18px 55px rgba(40, 103, 96, .11), 0 2px 8px rgba(38, 72, 69, .035); }
+.form-card { overflow: hidden; border: 1px solid rgba(42, 90, 87, .08); border-radius: 17px; background: #fff; box-shadow: 0 18px 55px rgba(40, 103, 96, .11), 0 2px 8px rgba(38, 72, 69, .035); }
 .progress-area { position: relative; padding: 23px 45px 15px; border-bottom: 1px solid #edf1f1; background: #fcfefe; }
 .step-track { position: relative; display: flex; justify-content: space-between; }
 .track-line { position: absolute; top: 14px; left: 13%; right: 13%; height: 2px; background: #e8eeee; }
@@ -68,8 +68,8 @@ button { cursor: pointer; }
 .back-button, .next-button { min-height: 39px; padding: 0 16px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; border-radius: 8px; font-size: 11px; font-weight: 700; transition: .2s ease; }
 .back-button { border: 1px solid #e1e9e9; color: #718385; background: white; }
 .back-button:hover { border-color: #c7d8d6; color: #315a57; background: #fbfdfd; }
-.next-button { border: 1px solid #159d90; color: #fff; background: linear-gradient(110deg, #25baa7, #159d90); box-shadow: 0 4px 10px rgba(21,157,144,.17); }
-.next-button:hover { background: #118d82; box-shadow: 0 5px 14px rgba(21,157,144,.25); transform: translateY(-1px); }
+.next-button { border: 1px solid #159d90; color: #fff; background: #159d90; }
+.next-button:hover { background: #118d82; }
 .next-button span { font-size: 15px; font-weight: 400; }
 .page-footer { padding: 17px 2px 0; display: flex; justify-content: space-between; color: #9bacac; font-size: 8px; font-weight: 700; letter-spacing: 1.2px; }
 @media (max-width: 640px) {
@@ -94,7 +94,7 @@ button { cursor: pointer; }
 /* CTNP brand palette */
 :root { --ink: #363435; --charcoal: #363435; --muted: #777577; --indigo: #2F6798; --gold: #C8A54B; --crimson: #ED1C25; --off-white: #F8F8F6; --line: #e8e6df; }
 body { color: var(--ink); background: var(--off-white); }
-.app-shell::before { top: 72px; height: calc(318px + 3rem); background: linear-gradient(90deg, rgba(18,31,47,.84), rgba(18,31,47,.62) 58%, rgba(18,31,47,.42)), url("/ctnp-bg-image-1.png") center 40% / cover no-repeat; }
+.app-shell::before { top: 72px; height: calc(318px + 8rem); background: linear-gradient(90deg, rgba(18,31,47,.84), rgba(18,31,47,.62) 58%, rgba(18,31,47,.42)), url("/ctnp-bg-image-1.png") center 40% / cover no-repeat; }
 .app-shell::after, .ambient { display: none; }
 .topbar { border-bottom-color: rgba(255,255,255,.18); background: var(--indigo); }
 .brand { color: #fff; }
@@ -140,14 +140,14 @@ body { color: var(--ink); background: var(--off-white); }
 .save-icon { color: var(--gold); }
 .back-button { border-color: #e2e0da; color: #777577; background: #fff; }
 .back-button:hover { border-color: #a6bed1; color: var(--indigo); background: #fbfcfd; }
-.next-button { border-color: var(--indigo); background: linear-gradient(110deg, #477ba5, var(--indigo)); box-shadow: 0 4px 10px rgba(47,103,152,.18); }
-.next-button:hover { background: #285b88; box-shadow: 0 5px 14px rgba(47,103,152,.25); }
+.next-button { border-color: var(--indigo); background: var(--indigo); }
+.next-button:hover { background: #285b88; }
 .page-footer { color: #969397; }
 .address-section { display: flex; flex-direction: column; gap: 12px; padding-top: 3px; }
 .address-heading { display: flex; flex-direction: column; gap: 6px; }
 .address-heading .field-label { font-size: 12px; text-transform: uppercase; }
 .address-heading .field-hint { margin: 0; }
-@media (max-width: 640px) { .app-shell::before { top: 62px; height: calc(325px + 3rem); background-position: 62% center; } }
+@media (max-width: 640px) { .app-shell::before { top: 62px; height: calc(325px + 8rem); background-position: 62% center; } }
 .address-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
 .photo-field { padding-top: 3px; }
 .optional-text { color: #929094; font-size: 10px; font-weight: 500; }

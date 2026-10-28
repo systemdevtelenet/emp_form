@@ -56,6 +56,14 @@ export async function lookupEmployeeInformation(input: unknown) {
     throw new EmployeeSaveError("Your profile could not be checked. Please try again.");
   }
   if (!data) return { found: false, employeeCode };
+  const [phoneResult, emergencyResult] = await Promise.all([
+    supabase.from("employee_phone_numbers").select("label, phone_number").eq("employee_id", data.employeeId).order("sort_order"),
+    supabase.from("employees").select("emergency_contact_additional_number").eq("id", data.employeeId).single(),
+  ]);
+  if (phoneResult.error || emergencyResult.error) {
+    console.error("Employee contact lookup failed", { code: phoneResult.error?.code || emergencyResult.error?.code });
+    throw new EmployeeSaveError("Your profile could not be checked. Please try again.");
+  }
 
   const values: Record<string, string> = {};
   const preservedCase = ["employee_email", "personal_email", "company_email", "vici_link", "avatar_url"];
@@ -65,6 +73,8 @@ export async function lookupEmployeeInformation(input: unknown) {
   }
   values.employee_code = employeeCode;
   values.account_lob_assignments = JSON.stringify(Array.isArray(data.assignments) ? data.assignments : []);
+  values.additional_contact_numbers = JSON.stringify((phoneResult.data ?? []).map((phone) => ({ label: phone.label, number: phone.phone_number })));
+  values.emergency_contact_additional_number = String(emergencyResult.data.emergency_contact_additional_number ?? "").trim().toUpperCase();
   values.employee_name = [values.first_name, values.middle_name, values.last_name, values.suffix].filter(Boolean).join(" ") || values.employee_name;
   if (["DAY", "MID", "NIGHT"].includes(values.shift_type)) values.shift_type += " SHIFT";
   const shift = values.shift?.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\s*[-–—]\s*(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);

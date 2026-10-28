@@ -48,6 +48,7 @@ begin
       'avatar_url', e.avatar_url,
       'gender', e.gender,
       'position_id', e.position_id,
+      'position_other', e.position_other,
       'first_name', e.first_name,
       'last_name', e.last_name,
       'middle_name', e.middle_name,
