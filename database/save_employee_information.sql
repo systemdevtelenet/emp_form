@@ -22,9 +22,9 @@ begin
   end if;
 
   foreach required_field in array array[
-    'employee_code', 'first_name', 'last_name', 'personal_email',
+    'employee_code', 'first_name', 'last_name',
     'gender', 'tax_status_code', 'birthdate', 'contact_number', 'hire_date',
-    'position_id', 'employment_status'
+    'employment_status'
   ] loop
     if nullif(btrim(p_employee ->> required_field), '') is null then
       raise exception 'Missing required employee field' using errcode = '22023';
@@ -37,6 +37,7 @@ begin
 
   employee_record := jsonb_populate_record(null::public.employees, p_employee);
   employee_record.employee_email := nullif(btrim(employee_record.employee_email), '');
+  employee_record.personal_email := nullif(btrim(employee_record.personal_email), '');
   employee_record.company_email := nullif(btrim(employee_record.company_email), '');
   employee_record.position_other := nullif(upper(btrim(employee_record.position_other)), '');
   if upper(btrim(p_employee ->> 'employment_status')) not in ('ACTIVE', 'INACTIVE', 'RESIGNED', 'ON LEAVE', 'AWOL', 'LATERAL') then
@@ -56,7 +57,8 @@ begin
   employee_record.employee_name := concat_ws(' ', employee_record.first_name,
     employee_record.middle_name, employee_record.last_name, employee_record.suffix);
 
-  if not exists (select 1 from public.positions where position_id = employee_record.position_id)
+  if (employee_record.position_id is not null
+      and not exists (select 1 from public.positions where position_id = employee_record.position_id))
      or ((p_account_id is null) <> (p_lob_id is null))
      or (p_account_id is not null and (
        not exists (select 1 from public.accounts where account_id = p_account_id and is_active)
@@ -224,12 +226,10 @@ begin
     select 1 from jsonb_array_elements(p_assignments) item
     where jsonb_typeof(item) <> 'object'
       or nullif(item ->> 'account_id', '') is null
-      or upper(coalesce(item ->> 'account_type', '')) not in ('NON VOICE', 'OUTBOUND', 'INBOUND', 'INBOUND/OUTBOUND', 'VOICE', 'VOICE - INBOUND', 'ADMIN', 'N/A')
-      or case when jsonb_typeof(item -> 'lob_ids') = 'array'
-              then jsonb_array_length(item -> 'lob_ids') = 0
-              else true end
+      or upper(coalesce(item ->> 'account_type', '')) not in ('NON-VOICE', 'OUTBOUND', 'INBOUND', 'INBOUND/OUTBOUND', 'VOICE', 'VOICE - INBOUND', 'ADMIN', 'N/A')
+      or jsonb_typeof(item -> 'lob_ids') is distinct from 'array'
   ) then
-    raise exception 'Each selected account must have at least one LOB' using errcode = '22023';
+    raise exception 'Invalid account or LOB selection' using errcode = '22023';
   end if;
   if exists (
     select 1 from jsonb_array_elements(p_assignments) item
@@ -292,6 +292,10 @@ begin
   loop
     v_account_id := (assignment_group ->> 'account_id')::bigint;
     v_account_type := upper(assignment_group ->> 'account_type');
+    if jsonb_array_length(assignment_group -> 'lob_ids') = 0 then
+      insert into public.employee_assignments (employee_id, account_id, lob_id, role_id, effective_from, account_type)
+      values (saved_id, v_account_id, null, saved_role_id, now(), v_account_type);
+    end if;
     for v_lob_id in select value::bigint from jsonb_array_elements_text(assignment_group -> 'lob_ids')
     loop
       insert into public.employee_assignments (employee_id, account_id, lob_id, role_id, effective_from, account_type)

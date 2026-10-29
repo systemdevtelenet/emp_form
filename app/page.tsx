@@ -48,7 +48,7 @@ const steps = [
       { name: "first_name", label: "First name", required: true },
       { name: "middle_name", label: "Middle name (optional)" },
       { name: "last_name", label: "Last name", required: true },
-      { name: "suffix", label: "Suffix (optional)", hint: "Jr., III, etc." },
+      { name: "suffix", label: "Suffix (optional)", placeholder: "N/A", options: [{ value: "JR.", label: "Jr." }, { value: "SR.", label: "Sr." }, { value: "II", label: "II" }, { value: "III", label: "III" }, { value: "IV", label: "IV" }, { value: "V", label: "V" }, { value: "VI", label: "VI" }, { value: "VII", label: "VII" }, { value: "VIII", label: "VIII" }, { value: "IX", label: "IX" }, { value: "X", label: "X" }] },
       { name: "gender", label: "Gender", required: true, options: [{ value: "FEMALE", label: "Female" }, { value: "MALE", label: "Male" }, { value: "NON-BINARY", label: "Non-binary" }, { value: "ANOTHER IDENTITY", label: "Another identity" }, { value: "PREFER NOT TO SAY", label: "Prefer not to say" }] },
       { name: "birthdate", label: "Birth date", type: "date", required: true },
       { name: "age", label: "Age", readOnly: true, hint: "Calculated from your birth date using the company spreadsheet formula." },
@@ -63,7 +63,7 @@ const steps = [
     fields: [
       { name: "contact_number", label: "Primary contact number", type: "tel", required: true },
       { name: "employee_email", label: "Company Gmail", type: "email", placeholder: "your-name.telenet@gmail.com" },
-      { name: "personal_email", label: "Personal email", type: "email", required: true },
+      { name: "personal_email", label: "Personal email", type: "email" },
       { name: "company_email", label: "Company email", type: "email", placeholder: "your-name@cebutele-net.com", pattern: "[^\\s@]+@cebutele-net\\.com", title: "Use your company email ending in @cebutele-net.com." },
       { name: "site", label: "Work site", options: [{ value: "ALABANG", label: "ALABANG" }, { value: "AYALA", label: "AYALA" }, { value: "FAUSTINA", label: "FAUSTINA" }, { value: "USA", label: "USA" }] },
     ],
@@ -76,7 +76,7 @@ const steps = [
       { name: "hire_date", label: "Hire date", type: "date", required: true },
       { name: "years_of_service", label: "Years of service", readOnly: true, hint: "Calculated from your hire date using the company spreadsheet formula." },
       { name: "employment_status", label: "Employment status", required: true, options: [{ value: "ACTIVE", label: "Active" }, { value: "INACTIVE", label: "Inactive" }] },
-      { name: "position_id", label: "Position", required: true },
+      { name: "position_id", label: "Position" },
       { name: "Department", label: "Department" },
       { name: "levels", label: "Level", options: [{ value: "EXECUTIVE", label: "Executive" }, { value: "CORE MANAGER", label: "Core Manager" }, { value: "SENIOR LEAD", label: "Senior Lead" }, { value: "JUNIOR LEAD", label: "Junior Lead" }, { value: "APPRENTICE", label: "Apprentice" }, { value: "SPECIAL OPERATIONS AGENT", label: "Special Operations Agent" }, { value: "AGENT", label: "Agent" }, { value: "L1", label: "L1" }, { value: "L2", label: "L2" }, { value: "L3", label: "L3" }] },
       { name: "shift_type", label: "Shift type", options: [{ value: "DAY SHIFT", label: "Day shift" }, { value: "MID SHIFT", label: "Mid shift" }, { value: "NIGHT SHIFT", label: "Night shift" }] },
@@ -110,7 +110,17 @@ const addressFields: Field[] = [
   { name: "address_province", label: "Province" },
 ];
 const presentAddressFields: Field[] = addressFields.map((field) => ({ ...field, name: field.name.replace(/^address_/, "present_address_") }));
-const accountTypeOptions = ["NON VOICE", "OUTBOUND", "INBOUND", "INBOUND/OUTBOUND", "VOICE", "VOICE - INBOUND", "ADMIN", "N/A"].map((value) => ({ value, label: value }));
+const accountTypeOptions = ["NON-VOICE", "OUTBOUND", "INBOUND", "INBOUND/OUTBOUND", "VOICE", "VOICE - INBOUND", "ADMIN", "N/A"].map((value) => ({ value, label: value }));
+function normalizeAccountTypeDraft(value?: string) {
+  if (!value) return value;
+  try {
+    const assignments: unknown = JSON.parse(value);
+    if (!Array.isArray(assignments)) return value;
+    return JSON.stringify(assignments.map((assignment) => assignment && typeof assignment === "object" && assignment.account_type === "NON VOICE"
+      ? { ...assignment, account_type: "NON-VOICE" }
+      : assignment));
+  } catch { return value; }
+}
 type AdditionalPhone = { label: string; number: string };
 function parseAdditionalPhones(value?: string): AdditionalPhone[] {
   try {
@@ -199,21 +209,20 @@ function PositionCombobox({ options, value, onChange }: { options: { value: stri
 
   return (
     <div className="field position-search-field">
-      <label className="field-label" htmlFor="employee-position-search">Position<span className="required-mark"> *</span></label>
+      <label className="field-label" htmlFor="employee-position-search">Position</label>
       <div className="position-search-control">
         <input
           ref={inputRef}
           id="employee-position-search"
           type="search"
           value={visibleQuery}
-          required
           autoComplete="off"
           role="combobox"
           aria-autocomplete="list"
           aria-expanded={open}
           aria-controls="employee-position-options"
           aria-activedescendant={open && filteredOptions[activeIndex] ? `employee-position-option-${filteredOptions[activeIndex].value}` : undefined}
-          placeholder="Search or select a position"
+          placeholder="Search or select a position (optional)"
           onFocus={() => { setQuery(selectedLabel); setOpen(true); }}
           onBlur={restoreSelection}
           onChange={(event) => {
@@ -221,7 +230,12 @@ function PositionCombobox({ options, value, onChange }: { options: { value: stri
             setOpen(true);
             setActiveIndex(0);
             if (listRef.current) listRef.current.scrollTop = 0;
-            event.target.setCustomValidity("Select a position from the list.");
+            if (!event.target.value) {
+              onChange("");
+              event.target.setCustomValidity("");
+            } else {
+              event.target.setCustomValidity("Select a position from the list.");
+            }
           }}
           onKeyDown={(event) => {
             if (event.key === "ArrowDown") {
@@ -242,6 +256,7 @@ function PositionCombobox({ options, value, onChange }: { options: { value: stri
         />
         <button type="button" className="position-search-toggle" aria-label="Show position choices" aria-expanded={open} onMouseDown={(event) => event.preventDefault()} onClick={() => { inputRef.current?.focus(); setQuery(""); setActiveIndex(0); setOpen(true); if (listRef.current) listRef.current.scrollTop = 0; }}>⌄</button>
         {open && <div ref={listRef} id="employee-position-options" className="position-search-options" role="listbox" aria-label="Position choices">
+          {value && <button type="button" role="option" aria-selected={false} className="position-search-option" onMouseDown={(event) => event.preventDefault()} onClick={() => { onChange(""); setQuery(""); setOpen(false); inputRef.current?.setCustomValidity(""); }}>Clear position</button>}
           {filteredOptions.length ? filteredOptions.map((option, index) => (
             <button key={option.value} id={`employee-position-option-${option.value}`} type="button" role="option" aria-selected={option.value === value} className={index === activeIndex ? "position-search-option active" : "position-search-option"} onMouseDown={(event) => event.preventDefault()} onMouseEnter={() => setActiveIndex(index)} onClick={() => choose(option)}>{option.label}</button>
           )) : <div className="position-search-empty">No matching positions. Clear the search and choose Other to type a new title.</div>}
@@ -413,7 +428,11 @@ export default function Home() {
       const result = await response.json().catch(() => null);
       if (!result || !response.ok) throw new Error(result?.error || "Your Employee Code could not be checked. Please try again.");
       const loadedValues = result.found ? result.values : { employee_code: result.employeeCode };
-      setValues(draftToRestore ? { ...loadedValues, ...draftToRestore.values } : loadedValues);
+      const restoredValues = draftToRestore ? { ...loadedValues, ...draftToRestore.values } : loadedValues;
+      if (restoredValues.account_lob_assignments) {
+        restoredValues.account_lob_assignments = normalizeAccountTypeDraft(restoredValues.account_lob_assignments);
+      }
+      setValues(restoredValues);
       setExistingProfile(Boolean(result.found));
       const savedAssignments = Array.isArray(result.assignments) ? result.assignments as AccountAssignmentSummary[] : [];
       setDetectedAssignments(savedAssignments);
@@ -707,7 +726,7 @@ export default function Home() {
             ) : (
             <div className="fields-grid">
               {activeStep === 2 && <section className="field-wide assignment-section" aria-labelledby="assignments-heading">
-                <div className="assignment-heading"><div className="assignment-title-row"><span className="field-label" id="assignments-heading">Accounts and LOBs</span><span className="optional-text">Optional</span></div><span className="field-hint">Choose one or more accounts, then select the LOBs for each one.</span></div>
+                <div className="assignment-heading"><div className="assignment-title-row"><span className="field-label" id="assignments-heading">Accounts and LOBs</span><span className="optional-text">Optional</span></div><span className="field-hint">Choose one or more accounts. LOBs are optional for each account.</span></div>
                 <div className="account-list">{accountOptions.map((account) => {
                   let assignments: { account_id: string; account_type?: string; lob_ids: string[] }[] = [];
                   try { assignments = JSON.parse(values.account_lob_assignments || "[]"); } catch {}
@@ -837,7 +856,7 @@ export default function Home() {
             {detectedAssignments.length > 0 && <ul className="lookup-account-list">
               {detectedAssignments.map((assignment) => <li key={assignment.account_id}>
                 <strong>{assignment.account_label || `Account ${assignment.account_id}`}</strong>
-                <span>{assignment.lob_options?.map((lob) => lob.label).join(", ") || assignment.lob_ids.join(", ")}</span>
+                <span>{assignment.lob_options?.map((lob) => lob.label).join(", ") || assignment.lob_ids.join(", ") || "No LOB selected"}</span>
               </li>)}
             </ul>}
             <button type="button" className="next-button lookup-modal-action" autoFocus onClick={continueAfterLookup}>

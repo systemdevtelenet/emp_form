@@ -3,8 +3,7 @@ export class EmployeeValidationError extends Error {}
 const requiredFields: Record<string, string> = {
   employee_code: "Employee ID", first_name: "First name", last_name: "Last name",
   gender: "Gender", tax_status_code: "Tax Status Code", birthdate: "Birth date", contact_number: "Primary contact number",
-  personal_email: "Personal email", hire_date: "Hire date",
-  position_id: "Position",
+  hire_date: "Hire date",
   employment_status: "Employment status",
 };
 
@@ -22,6 +21,7 @@ const presentAddressFields = ["present_address_building", "present_address_stree
 const levels = ["EXECUTIVE", "CORE MANAGER", "SENIOR LEAD", "JUNIOR LEAD", "APPRENTICE", "SPECIAL OPERATIONS AGENT", "AGENT", "L1", "L2", "L3"];
 const genders = ["FEMALE", "MALE", "NON-BINARY", "ANOTHER IDENTITY", "PREFER NOT TO SAY"];
 const taxStatusCodes = ["SINGLE", "MARRIED", "WIDOWED", "LEGALLY SEPARATED", "DIVORCED", "ANNULLED"];
+const suffixes = ["JR.", "SR.", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
 const additionalPhoneLabels = ["COMPANY MOBILE", "PERSONAL MOBILE", "OFFICE / EXTENSION", "OTHER"];
 
 export function validateEmployeeSubmission(input: unknown) {
@@ -44,7 +44,7 @@ export function validateEmployeeSubmission(input: unknown) {
   const employee: Record<string, string | number | boolean | null> = {};
   for (const key of textFields) employee[key] = values[key]?.toUpperCase() || null;
   for (const key of emailFields) {
-    if (!values[key] && key !== "personal_email") {
+    if (!values[key]) {
       employee[key] = null;
       continue;
     }
@@ -61,6 +61,7 @@ export function validateEmployeeSubmission(input: unknown) {
     if ((values[key]?.length ?? 0) > 120) throw new EmployeeValidationError("Each name must be 120 characters or fewer.");
   }
   if ((values.suffix?.length ?? 0) > 40) throw new EmployeeValidationError("Suffix must be 40 characters or fewer.");
+  if (employee.suffix !== null && !suffixes.includes(String(employee.suffix))) throw new EmployeeValidationError("Please choose a suffix from the list.");
   if (!genders.includes(String(employee.gender))) throw new EmployeeValidationError("Please choose a gender option.");
   if (employee.tax_status_code !== null && !taxStatusCodes.includes(String(employee.tax_status_code))) throw new EmployeeValidationError("Please choose a valid Tax Status Code.");
   if (!["ACTIVE", "INACTIVE", "RESIGNED", "ON LEAVE", "AWOL", "LATERAL"].includes(String(values.employment_status).toUpperCase())) {
@@ -118,14 +119,14 @@ export function validateEmployeeSubmission(input: unknown) {
     if (!values[key] && !required) return null;
     const value = Number(values[key]);
     if (!/^\d+$/.test(values[key]) || !Number.isSafeInteger(value) || value <= 0) {
-      const label = requiredFields[key] ?? (key === "account_id" ? "Account" : "LOB");
+      const label = requiredFields[key] ?? (key === "position_id" ? "Position" : key === "account_id" ? "Account" : "LOB");
       throw new EmployeeValidationError(`Please choose a valid ${label.toLowerCase()}.`);
     }
     return value;
   }
-  employee.position_id = id("position_id");
+  employee.position_id = id("position_id", false);
   if ((values.position_other?.length ?? 0) > 120) throw new EmployeeValidationError("Other position must be 120 characters or fewer.");
-  employee.position_other = values.position_other?.toUpperCase() || null;
+  employee.position_other = employee.position_id ? values.position_other?.toUpperCase() || null : null;
   let phoneNumbers: { label: string; number: string }[] = [];
   if (values.additional_contact_numbers) {
     let parsed: unknown;
@@ -154,13 +155,14 @@ export function validateEmployeeSubmission(input: unknown) {
     assignments = parsed.map((entry) => {
       if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new EmployeeValidationError("Please review your account and LOB selections.");
       const account_id = Number((entry as Record<string, unknown>).account_id);
-      const account_type = String((entry as Record<string, unknown>).account_type ?? "").toUpperCase();
+      const rawAccountType = String((entry as Record<string, unknown>).account_type ?? "").toUpperCase();
+      const account_type = rawAccountType === "NON VOICE" ? "NON-VOICE" : rawAccountType;
       const rawLobs = (entry as Record<string, unknown>).lob_ids;
-      if (!["NON VOICE", "OUTBOUND", "INBOUND", "INBOUND/OUTBOUND", "VOICE", "VOICE - INBOUND", "ADMIN", "N/A"].includes(account_type)) {
+      if (!["NON-VOICE", "OUTBOUND", "INBOUND", "INBOUND/OUTBOUND", "VOICE", "VOICE - INBOUND", "ADMIN", "N/A"].includes(account_type)) {
         throw new EmployeeValidationError("Choose a type of account for every selected account.");
       }
-      if (!Number.isSafeInteger(account_id) || account_id <= 0 || accountIds.has(account_id) || !Array.isArray(rawLobs) || rawLobs.length === 0 || rawLobs.length > 100) {
-        throw new EmployeeValidationError("Choose at least one LOB for every selected account.");
+      if (!Number.isSafeInteger(account_id) || account_id <= 0 || accountIds.has(account_id) || !Array.isArray(rawLobs) || rawLobs.length > 100) {
+        throw new EmployeeValidationError("Please review your account and LOB selections.");
       }
       accountIds.add(account_id);
       const lob_ids = rawLobs.map((lob) => Number(lob));
