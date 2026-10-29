@@ -26,15 +26,15 @@ begin
       select jsonb_agg(jsonb_build_object('account_id', grouped.account_id::text, 'account_label', grouped.account_name, 'account_type', grouped.account_type, 'lob_ids', grouped.lob_ids, 'lob_options', grouped.lob_options) order by grouped.account_id)
       from (
         select ea.account_id, a.account_name as account_name, max(ea.account_type) as account_type,
-          jsonb_agg(ea.lob_id::text order by ea.lob_id) as lob_ids,
-          jsonb_agg(jsonb_build_object('value', ea.lob_id::text, 'label', l.lob_name) order by ea.lob_id) as lob_options
+          coalesce(jsonb_agg(ea.lob_id::text order by ea.lob_id) filter (where ea.lob_id is not null), '[]'::jsonb) as lob_ids,
+          coalesce(jsonb_agg(jsonb_build_object('value', ea.lob_id::text, 'label', l.lob_name) order by ea.lob_id) filter (where ea.lob_id is not null), '[]'::jsonb) as lob_options
         from public.employee_assignments ea
         left join public.accounts a on a.account_id = ea.account_id
         left join public.lobs l on l.lob_id = ea.lob_id
         where ea.employee_id = e.id
           and (ea.effective_to is null or ea.effective_to > now())
           and (ea.effective_from is null or ea.effective_from <= now())
-          and ea.account_id is not null and ea.lob_id is not null
+          and ea.account_id is not null
         group by ea.account_id, a.account_name
       ) grouped
     ), '[]'::jsonb),

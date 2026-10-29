@@ -1,9 +1,10 @@
 -- Allow VOICE - INBOUND for existing and new account assignments.
 alter table public.employee_assignments drop constraint if exists employee_assignments_account_type_check;
+update public.employee_assignments set account_type = 'NON-VOICE' where account_type = 'NON VOICE';
 alter table public.employee_assignments
   add constraint employee_assignments_account_type_check
   check (account_type is null or account_type in (
-    'NON VOICE', 'OUTBOUND', 'INBOUND', 'INBOUND/OUTBOUND', 'VOICE', 'VOICE - INBOUND', 'ADMIN', 'N/A'
+    'NON-VOICE', 'OUTBOUND', 'INBOUND', 'INBOUND/OUTBOUND', 'VOICE', 'VOICE - INBOUND', 'ADMIN', 'N/A'
   )) not valid;
 -- Replaces the employee's current account/LOB set in the same transaction as the profile update.
 create or replace function public.save_employee_information_with_assignments(
@@ -31,12 +32,10 @@ begin
     select 1 from jsonb_array_elements(p_assignments) item
     where jsonb_typeof(item) <> 'object'
       or nullif(item ->> 'account_id', '') is null
-      or upper(coalesce(item ->> 'account_type', '')) not in ('NON VOICE', 'OUTBOUND', 'INBOUND', 'INBOUND/OUTBOUND', 'VOICE', 'VOICE - INBOUND', 'ADMIN', 'N/A')
-      or case when jsonb_typeof(item -> 'lob_ids') = 'array'
-              then jsonb_array_length(item -> 'lob_ids') = 0
-              else true end
+      or upper(coalesce(item ->> 'account_type', '')) not in ('NON-VOICE', 'OUTBOUND', 'INBOUND', 'INBOUND/OUTBOUND', 'VOICE', 'VOICE - INBOUND', 'ADMIN', 'N/A')
+      or jsonb_typeof(item -> 'lob_ids') is distinct from 'array'
   ) then
-    raise exception 'Each selected account must have at least one LOB' using errcode = '22023';
+    raise exception 'Invalid account or LOB selection' using errcode = '22023';
   end if;
   if exists (
     select 1 from jsonb_array_elements(p_assignments) item
@@ -99,6 +98,10 @@ begin
   loop
     v_account_id := (assignment_group ->> 'account_id')::bigint;
     v_account_type := upper(assignment_group ->> 'account_type');
+    if jsonb_array_length(assignment_group -> 'lob_ids') = 0 then
+      insert into public.employee_assignments (employee_id, account_id, lob_id, role_id, effective_from, account_type)
+      values (saved_id, v_account_id, null, saved_role_id, now(), v_account_type);
+    end if;
     for v_lob_id in select value::bigint from jsonb_array_elements_text(assignment_group -> 'lob_ids')
     loop
       insert into public.employee_assignments (employee_id, account_id, lob_id, role_id, effective_from, account_type)
