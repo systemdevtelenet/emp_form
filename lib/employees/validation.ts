@@ -2,7 +2,7 @@ export class EmployeeValidationError extends Error {}
 
 const requiredFields: Record<string, string> = {
   employee_code: "Employee ID", first_name: "First name", last_name: "Last name",
-  gender: "Gender", tax_status_code: "Tax Status Code", birthdate: "Birth date", contact_number: "Primary contact number",
+  gender: "Gender", tax_status_code: "Tax Status Code", birthdate: "Birth date",
   hire_date: "Hire date",
   employment_status: "Employment status",
 };
