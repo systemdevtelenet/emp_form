@@ -61,7 +61,7 @@ const steps = [
     subtitle: "Share the contact information you would like CTNP to keep on file.",
     icon: "02",
     fields: [
-      { name: "contact_number", label: "Primary contact number", type: "tel", required: true },
+      { name: "contact_number", label: "Primary contact number", type: "tel" },
       { name: "employee_email", label: "Company Gmail", type: "email", placeholder: "your-name.telenet@gmail.com" },
       { name: "personal_email", label: "Personal email", type: "email" },
       { name: "company_email", label: "Company email", type: "email", placeholder: "your-name@cebutele-net.com", pattern: "[^\\s@]+@cebutele-net\\.com", title: "Use your company email ending in @cebutele-net.com." },

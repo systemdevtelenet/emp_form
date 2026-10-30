@@ -23,7 +23,7 @@ begin
 
   foreach required_field in array array[
     'employee_code', 'first_name', 'last_name',
-    'gender', 'tax_status_code', 'birthdate', 'contact_number', 'hire_date',
+    'gender', 'tax_status_code', 'birthdate', 'hire_date',
     'employment_status'
   ] loop
     if nullif(btrim(p_employee ->> required_field), '') is null then
