@@ -1,11 +1,11 @@
 import { lookupEmployeeInformation } from "@/lib/employees/lookup";
 import { EmployeeSaveError } from "@/lib/employees/save";
 import { EmployeeValidationError } from "@/lib/employees/validation";
+import { hasSameOrigin } from "@/lib/http/origin";
 
 export async function POST(request: Request) {
   const headers = { "Cache-Control": "no-store" };
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) return Response.json({ error: "Please use the employee form page." }, { status: 403, headers });
+  if (!hasSameOrigin(request)) return Response.json({ error: "Please use the employee form page." }, { status: 403, headers });
   let code: unknown;
   try { code = (await request.json()).employeeCode; }
   catch { return Response.json({ error: "Please enter your Employee Code." }, { status: 400, headers }); }

@@ -1,9 +1,9 @@
 import { EmployeeSaveError, saveEmployeeInformation } from "@/lib/employees/save";
 import { EmployeeValidationError } from "@/lib/employees/validation";
+import { hasSameOrigin } from "@/lib/http/origin";
 
 export async function POST(request: Request) {
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) {
+  if (!hasSameOrigin(request)) {
     return Response.json({ error: "Please submit this form from its original page." }, { status: 403 });
   }
   const contentLength = Number(request.headers.get("content-length"));
