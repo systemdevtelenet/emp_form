@@ -1,0 +1,13 @@
+services:
+  emp-form:
+    build: .
+    image: emp-form:local
+    container_name: emp-form
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: "3001"
+      HOSTNAME: "0.0.0.0"
+    env_file:
+      - .env.production
