@@ -113,3 +113,29 @@
   .additional-phone-row { grid-template-columns: 1fr; }
   .employee-preview-grid { grid-template-columns: 1fr; }
 }
+
+/* ---------- Credential claiming (login setup) ---------- */
+.claim-credentials { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; padding-top: 16px; border-top: 1px solid #ece9e1; }
+.claim-credentials-message { margin: 0; color: #55525a; font-size: 13px; line-height: 1.55; }
+.claim-credentials .login-alt-button { padding: 0; border: 0; background: transparent; color: #2f4b8f; font: inherit; font-size: 13px; font-weight: 800; text-decoration: none; cursor: pointer; }
+.claim-credentials .login-alt-button:hover { color: #1f3a70; text-decoration: underline; }
+.claim-credentials .login-alt-button:focus-visible { outline: 2px solid #2f4b8f; outline-offset: 2px; }
+.claim-credentials-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 0; }
+.claim-credentials-field { display: flex; flex-direction: column; gap: 4px; }
+.claim-credentials-field > span:first-child { color: #3d3a44; font-size: 11px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
+.claim-credentials-field input { width: 100%; padding: 9px 11px; border: 1px solid #d9d6cd; border-radius: 7px; background: #fff; color: #23202a; font: inherit; font-size: 13px; }
+.claim-credentials-field input:focus { border-color: var(--indigo, #2f4b8f); outline: none; box-shadow: 0 0 0 3px rgba(47, 75, 143, .12); }
+.claim-credentials-field input[aria-invalid="true"] { border-color: #a63a2e; }
+.claim-credentials-field-error { color: #a63a2e; font-size: 11px; font-weight: 600; }
+.claim-credentials-password-wrap { position: relative; display: block; }
+.claim-credentials-password-wrap input { padding-right: 40px; }
+.claim-credentials-toggle-password { position: absolute; top: 50%; right: 4px; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #6f6c76; transform: translateY(-50%); cursor: pointer; }
+.claim-credentials-toggle-password svg { width: 18px; height: 18px; }
+.claim-credentials-submit { grid-column: 1 / -1; padding: 10px 16px; border: 1px solid var(--indigo, #2f4b8f); border-radius: 8px; background: var(--indigo, #2f4b8f); color: #fff; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.claim-credentials-submit:disabled { opacity: .7; cursor: default; }
+.claim-credentials-error { grid-column: 1 / -1; padding: 8px 10px; border: 1px solid #e3b9b2; border-radius: 7px; background: #fbf1ef; color: #a63a2e; font-size: 12px; }
+.claim-credentials-success { grid-column: 1 / -1; padding: 10px 12px; border: 1px solid #bbdcc8; border-radius: 7px; background: #f0f8f3; }
+.claim-credentials-success p { margin: 0; color: #23653f; font-size: 13px; font-weight: 600; }
+.claim-credentials-extra { display: none; }
+.claim-credentials-help { grid-column: 1 / -1; margin: 0; }
+@media (max-width: 640px) { .claim-credentials-form-grid { grid-template-columns: 1fr; } }
