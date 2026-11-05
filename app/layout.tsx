@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Add an Employee | CTNP People",
-  description: "Create an employee profile for CTNP System.",
+  title: "Sign in | CTNP People",
+  description: "Sign in to your CTNP People account.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
