@@ -94,9 +94,11 @@ button { cursor: pointer; }
 /* CTNP brand palette */
 :root { --ink: #363435; --charcoal: #363435; --muted: #777577; --indigo: #2F6798; --gold: #C8A54B; --crimson: #ED1C25; --off-white: #F8F8F6; --line: #e8e6df; }
 body { color: var(--ink); background: var(--off-white); }
-.app-shell::before { top: 72px; height: calc(318px + 8rem); background: linear-gradient(90deg, rgba(18,31,47,.84), rgba(18,31,47,.62) 58%, rgba(18,31,47,.42)), url("/ctnp-bg-image-1.png") center 40% / cover no-repeat; }
+.app-shell { padding: 72px 0 64px; }
+.app-shell::before { top: 72px; height: calc(100% - 136px); background: linear-gradient(90deg, rgba(18,31,47,.84), rgba(18,31,47,.62) 58%, rgba(18,31,47,.42)), url("/ctnp-bg-image-1.png") center 40% / cover no-repeat; }
+.page-content { min-height: calc(100svh - 136px); }
 .app-shell::after, .ambient { display: none; }
-.topbar { border-bottom-color: rgba(255,255,255,.18); background: var(--indigo); }
+.topbar { position: fixed; z-index: 5; inset: 0 0 auto; border-bottom-color: rgba(255,255,255,.18); background: var(--indigo); }
 .brand { color: #fff; }
 .brand b { color: #deebf7; }
 .topbar-right { color: #f2f6fa; }
@@ -142,12 +144,16 @@ body { color: var(--ink); background: var(--off-white); }
 .back-button:hover { border-color: #a6bed1; color: var(--indigo); background: #fbfcfd; }
 .next-button { border-color: var(--indigo); background: var(--indigo); }
 .next-button:hover { background: #285b88; }
-.page-footer { color: #969397; }
+.page-footer { position: fixed; z-index: 5; inset: auto 0 0; min-height: 64px; padding: 0 max(20px, calc((100vw - 900px) / 2)); align-items: center; border-top: 1px solid #e7e9eb; background: #fff; color: #777f88; }
 .address-section { display: flex; flex-direction: column; gap: 12px; padding-top: 3px; }
 .address-heading { display: flex; flex-direction: column; gap: 6px; }
 .address-heading .field-label { font-size: 12px; text-transform: uppercase; }
 .address-heading .field-hint { margin: 0; }
-@media (max-width: 640px) { .app-shell::before { top: 62px; height: calc(325px + 8rem); background-position: 62% center; } }
+@media (max-width: 640px) {
+  .app-shell { padding-top: 62px; }
+  .app-shell::before { top: 62px; height: calc(100% - 126px); background-position: 62% center; }
+  .page-content { min-height: calc(100svh - 126px); }
+}
 .address-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
 .photo-field { padding-top: 3px; }
 .optional-text { color: #929094; font-size: 10px; font-weight: 500; }

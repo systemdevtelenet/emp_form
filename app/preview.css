@@ -117,6 +117,21 @@
 /* ---------- Credential claiming (login setup) ---------- */
 .claim-credentials { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; padding-top: 16px; border-top: 1px solid #ece9e1; }
 .claim-credentials-message { margin: 0; color: #55525a; font-size: 13px; line-height: 1.55; }
+.claim-credentials-invite { flex-direction: row; align-items: center; gap: 14px; margin-top: 0; padding: 22px 46px; background: #f5f8fb; }
+.claim-credentials-invite-icon { display: grid; place-items: center; flex: 0 0 42px; height: 42px; border: 1px solid #dce6ef; border-radius: 12px; background: #fff; color: var(--indigo, #2f6798); }
+.claim-credentials-invite-icon svg { width: 24px; height: 24px; }
+.claim-credentials-invite-copy { flex: 1; min-width: 0; }
+.claim-credentials-invite-title { margin: 0 0 4px; color: #253d51; font-size: 14px; font-weight: 700; line-height: 1.4; }
+.claim-credentials-invite .claim-credentials-message { color: #647587; font-size: 12px; }
+.claim-credentials-login { display: inline-flex; align-items: center; justify-content: center; gap: 10px; flex-shrink: 0; min-height: 42px; padding: 10px 18px; border: 1px solid #c6d7e6; border-radius: 8px; background: #fff; color: var(--indigo, #2f6798); font-size: 13px; font-weight: 700; text-decoration: none; transition: background .16s, border-color .16s; }
+.claim-credentials-login svg { width: 16px; height: 16px; }
+.claim-credentials-login:hover { border-color: var(--indigo, #2f6798); background: #eaf1f7; }
+.claim-credentials-login:focus-visible { outline: 3px solid var(--indigo, #2f6798); outline-offset: 3px; }
+@media (max-width: 640px) {
+  .claim-credentials-invite { flex-wrap: wrap; gap: 12px; padding: 20px 24px; }
+  .claim-credentials-invite-copy { flex-basis: calc(100% - 56px); }
+  .claim-credentials-login { width: 100%; }
+}
 .claim-credentials .login-alt-button { padding: 0; border: 0; background: transparent; color: #2f4b8f; font: inherit; font-size: 13px; font-weight: 800; text-decoration: none; cursor: pointer; }
 .claim-credentials .login-alt-button:hover { color: #1f3a70; text-decoration: underline; }
 .claim-credentials .login-alt-button:focus-visible { outline: 2px solid #2f4b8f; outline-offset: 2px; }

@@ -841,8 +841,8 @@ export default function Home() {
           </form>
           </>)}
         </section>
-        <footer className="page-footer"><span>CTNP SYSTEM</span><span>EMPLOYEE PROFILE</span></footer>
       </section>
+      <footer className="page-footer"><span>CTNP SYSTEM</span><span>EMPLOYEE PROFILE</span></footer>
       {showLookupModal && createPortal((
         <div className="modal-backdrop lookup-modal-backdrop">
           <section className="lookup-modal" role="dialog" aria-modal="true" aria-labelledby="lookup-modal-title" aria-describedby="lookup-modal-description">

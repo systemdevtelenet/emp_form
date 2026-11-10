@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { ArrowRightIcon, UserCircleIcon } from "@heroicons/react/24/outline";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -62,7 +63,12 @@ export default function ClaimCredentials() {
   if (!claimRequested) {
     return (
       <div className="claim-credentials claim-credentials-invite">
-        <p className="claim-credentials-message">Already have an Employee Code? Set up your login credentials to sign in. <Link href="/" className="login-alt-button">Login</Link></p>
+        <span className="claim-credentials-invite-icon" aria-hidden="true"><UserCircleIcon /></span>
+        <div className="claim-credentials-invite-copy">
+          <p className="claim-credentials-invite-title">Already have an Employee Code?</p>
+          <p className="claim-credentials-message">Set up your login credentials to sign in.</p>
+        </div>
+        <Link href="/" className="claim-credentials-login">Login <ArrowRightIcon aria-hidden="true" /></Link>
       </div>
     );
   }
